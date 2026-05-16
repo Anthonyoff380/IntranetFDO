@@ -412,8 +412,9 @@ async function doLogin(){
 function doLogout(){
   CU=null;
   $('app').style.display='none';
-  $('login-screen').style.display='flex';
-  $('lid').value='';$('lpw').value='';
+  $('login-screen').style.display='none';
+  // Retour au portail principal
+  window.location.href='index.html';
 }
 function toggleUD(){$('udrop').classList.toggle('open');}
 
@@ -1490,6 +1491,7 @@ function openModalDyn(title,body){
 // INIT
 // ============================================================
 window.onload=async function(){
+  // Charger config globale
   try{
     let cfg=await dbGetOne('config','webhooks');if(cfg){Object.assign(MEM.webhooks,cfg);}
     let ti=await dbGetOne('config','typeInterventions');if(ti)MEM.typeInterventions=ti;
@@ -1497,8 +1499,52 @@ window.onload=async function(){
     let roles=await dbGet('roles',[['service','==','gn']]);
     roles.forEach(r=>{if(!customRoles['gn'])customRoles['gn']=[];customRoles['gn'].push(r);});
   }catch(e){console.warn('Init Firebase:',e);}
-  $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+  // ── Auto-login depuis le portail (sessionStorage) ──
+  let autoId='', autoPw='', autoSvc='';
+  try{
+    autoId=sessionStorage.getItem('fdo_login_id')||'';
+    autoPw=sessionStorage.getItem('fdo_login_pw')||'';
+    autoSvc=sessionStorage.getItem('fdo_login_service')||'';
+    // Nettoyer immédiatement pour ne pas rejouer au refresh
+    sessionStorage.removeItem('fdo_login_id');
+    sessionStorage.removeItem('fdo_login_pw');
+    sessionStorage.removeItem('fdo_login_service');
+  }catch{}
+
+  if(autoId && autoPw && autoSvc==='gn'){
+    // Connexion automatique sans afficher le formulaire
+    await doAutoLogin(autoId, autoPw);
+  } else {
+    // Affichage normal du formulaire
+    $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  }
 };
+
+// Connexion auto depuis sessionStorage — sans formulaire
+async function doAutoLogin(id, pw){
+  let u=null;
+  try{
+    let snap=await db.collection('users').where('identifiant','==',id).where('service','==','gn').limit(1).get();
+    if(!snap.empty){let d=snap.docs[0];let data=d.data();if(data.password===pw)u={uid:d.id,...data};}
+  }catch{}
+  if(!u){
+    let du=DEMO_USERS[id];
+    if(du&&du.pw===pw&&du.service==='gn') u={uid:id,identifiant:id,...du};
+  }
+  if(!u){
+    // Échec auto-login : afficher le formulaire normalement
+    $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+    return;
+  }
+  CU=u;
+  try{
+    let gs=await db.collection('grades').where('service','==','gn').orderBy('order').get();
+    if(!gs.empty)GRADES=gs.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{}
+  $('login-screen').style.display='none';
+  buildApp();
+}
 </script>
 </body>
 </html>

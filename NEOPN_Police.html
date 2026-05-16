@@ -512,8 +512,9 @@ async function doLogin(){
 function doLogout(){
   CU=null;SERVICE=null;GRADES=[];
   $('app').style.display='none';
-  $('fondateur-bar').style.display='none';
-  $('portal').style.display='flex';
+  let fb=$('fondateur-bar');if(fb)fb.style.display='none';
+  // Retour au portail principal
+  window.location.href='index.html';
 }
 function toggleUD(){$('udrop').classList.toggle('open');}
 
@@ -1723,6 +1724,7 @@ function openModalDyn(title,body){
 // INIT
 // ============================================================
 window.onload=async function(){
+  // Charger config globale
   try{
     let cfg=await dbGetOne('config','webhooks');if(cfg)Object.assign(MEM.webhooks,cfg);
     let ti=await dbGetOne('config','typeInterventions');if(ti)MEM.typeInterventions=ti;
@@ -1736,8 +1738,72 @@ window.onload=async function(){
       }
     });
   }catch(e){console.warn('Init Firebase:',e);}
-  $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+  // ── Auto-login depuis le portail index.html (sessionStorage) ──
+  let autoId='', autoPw='', autoSvc='';
+  try{
+    autoId=sessionStorage.getItem('fdo_login_id')||'';
+    autoPw=sessionStorage.getItem('fdo_login_pw')||'';
+    autoSvc=sessionStorage.getItem('fdo_login_service')||'';
+    sessionStorage.removeItem('fdo_login_id');
+    sessionStorage.removeItem('fdo_login_pw');
+    sessionStorage.removeItem('fdo_login_service');
+  }catch{}
+
+  if(autoId && autoPw && (autoSvc==='gn'||autoSvc==='pn')){
+    // Masquer le portail interne, aller direct sur l'intranet cible
+    let portal=$('portal');
+    let loginScr=$('login-screen');
+    if(portal) portal.style.display='none';
+    if(loginScr) loginScr.style.display='none';
+    await doAutoLogin(autoId, autoPw, autoSvc);
+  } else {
+    // Comportement normal : afficher le portail interne
+    $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  }
 };
+
+// Connexion automatique — appelée depuis le sessionStorage
+async function doAutoLogin(id, pw, svc){
+  SERVICE=svc;
+  let u=null;
+
+  // Firebase
+  try{
+    let snap=await db.collection('users').where('identifiant','==',id).where('service','==',svc).limit(1).get();
+    if(!snap.empty){let d=snap.docs[0];let data=d.data();if(data.password===pw)u={uid:d.id,...data};}
+  }catch{}
+
+  // Fallback démo
+  if(!u){
+    let du=DEMO_USERS[id];
+    if(du&&du.pw===pw&&du.service===svc) u={uid:id,identifiant:id,...du};
+  }
+
+  if(!u){
+    // Auto-login échoué → afficher le portail interne normalement
+    SERVICE=null;
+    let portal=$('portal');
+    if(portal) portal.style.display='flex';
+    $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+    return;
+  }
+
+  CU=u;
+
+  // Charger grades selon service
+  if(svc==='gn') GRADES=[...GRADES_GN];
+  else if(svc==='pn') GRADES=[...GRADES_PN];
+
+  try{
+    let gs=await db.collection('grades').where('service','==',svc).orderBy('order').get();
+    if(!gs.empty)GRADES=gs.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{}
+
+  // Cacher login-screen si visible, aller dans l'app
+  let ls=$('login-screen');if(ls)ls.style.display='none';
+  buildApp();
+}
 </script>
 </body>
 </html>
