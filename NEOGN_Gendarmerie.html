@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NEOGN — Gendarmerie Nationale</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+body{background:#0d1b2a;height:100vh;overflow:hidden}
+
+/* ===== LOGIN ===== */
+#login-screen{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.lbox{background:#fff;border-radius:14px;padding:44px 40px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.llogo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px}
+.llogo-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:#0d1b2a;color:#fff}
+.llogo-text{font-size:16px;font-weight:700;line-height:1.2;color:#0d1b2a}
+.llogo-text span{font-size:11px;font-weight:400;color:#888;display:block}
+.ltitle{text-align:center;font-size:18px;font-weight:700;margin-bottom:6px;color:#0d1b2a}
+.lhr{border:none;border-top:1px solid #eee;margin-bottom:18px}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:13px;color:#444;margin-bottom:4px;font-weight:600}
+.fg input{width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;background:#fff;color:#222}
+.fg input:focus{border-color:#0d1b2a}
+.btn-login{width:100%;background:#0d1b2a;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-login:hover{opacity:.9}
+.lerr{color:#c0392b;font-size:12px;margin-top:6px;text-align:center;display:none}
+
+/* ===== APP ===== */
+#app{display:none;height:100vh;flex-direction:column}
+.topbar{display:flex;align-items:center;padding:0 18px;height:52px;gap:14px;flex-shrink:0;background:#0d1b2a}
+.topbar-brand{color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
+.topbar-logo{width:34px;height:34px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.topbar-search{flex:1;max-width:340px;margin:0 auto}
+.topbar-search input{width:100%;background:#ffffff15;border:1px solid #ffffff30;border-radius:20px;padding:6px 14px;color:#fff;font-size:13px;outline:none}
+.topbar-search input::placeholder{color:#ffffff70}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.topbar-user{color:#fff;font-size:13px;cursor:pointer;padding:5px 10px;border-radius:8px;position:relative;display:flex;align-items:center;gap:6px}
+.topbar-user:hover{background:#ffffff18}
+.udrop{position:absolute;top:44px;right:0;background:#fff;border-radius:10px;border:1px solid #ddd;padding:14px;min-width:230px;z-index:999;display:none;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.udrop.open{display:block}
+.udrop-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.udrop-meta{font-size:12px;color:#666;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #eee}
+.udrop-grade-img{width:44px;height:44px;object-fit:contain;background:#1a1a2e;border-radius:6px;padding:2px;display:block;margin-bottom:8px}
+.btn-logout{width:100%;background:#c0392b;color:#fff;border:none;border-radius:7px;padding:8px;font-size:13px;cursor:pointer;font-weight:600}
+.layout{display:flex;flex:1;overflow:hidden;height:calc(100vh - 52px)}
+.sidebar{width:225px;overflow-y:auto;flex-shrink:0;border-right:1px solid #e3e6f0;background:#f7f8fc}
+.sidebar-section{padding:10px 12px 4px;font-size:10px;font-weight:700;color:#9599b0;letter-spacing:.8px;text-transform:uppercase;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-radius:8px;margin:2px 6px;font-size:13px;color:#3a3d5c;font-weight:500;transition:background .15s}
+.nav-item:hover{background:#e8ecf8}
+.nav-item.active{color:#fff;background:#0d1b2a}
+.nav-item .ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:#e74c3c;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px}
+.content{flex:1;overflow-y:auto;padding:20px;background:#f0f2f8}
+.pg{display:none}.pg.active{display:block}
+.page-title{font-size:19px;font-weight:700;margin-bottom:3px}
+.page-sub{font-size:13px;color:#666;margin-bottom:16px}
+
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.card{background:#fff;border-radius:12px;border:1px solid #e3e6f0;padding:15px}
+.card-icon{font-size:22px;margin-bottom:7px}
+.card-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.card-desc{font-size:11px;color:#777;line-height:1.4}
+.cbtn{margin-top:8px;color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer;font-weight:600;display:inline-block}
+.cbtn:hover{opacity:.85}
+.cbtn.navy{background:#0d1b2a}.cbtn.green{background:#27ae60}.cbtn.red{background:#c0392b}.cbtn.blue{background:#2980b9}.cbtn.orange{background:#e67e22}
+
+/* TABLE */
+.tw{background:#fff;border-radius:12px;border:1px solid #e3e6f0;overflow:hidden;margin-bottom:14px}
+.th{padding:12px 16px;border-bottom:1px solid #eee;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse}
+th{background:#f7f8fc;padding:8px 12px;font-size:11px;font-weight:700;color:#666;text-align:left;border-bottom:1px solid #eee}
+td{padding:9px 12px;font-size:12px;color:#333;border-bottom:.5px solid #f5f5f5}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fafe}
+
+/* STATS */
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.st{background:#fff;border-radius:10px;border:1px solid #e3e6f0;padding:12px;text-align:center}
+.st-n{font-size:26px;font-weight:700}
+.st-l{font-size:11px;color:#888;margin-top:2px}
+
+/* BADGES */
+.b{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px}
+.b-blue{background:#e8ecf8;color:#1a2e5a}.b-green{background:#e6f4ea;color:#1a6b2a}
+.b-red{background:#fde8e8;color:#7b1818}.b-orange{background:#fff3e0;color:#8a4a00}
+.b-gray{background:#f0f0f0;color:#555}.b-purple{background:#f0e8ff;color:#5a1a8a}
+
+/* FORMS */
+.fc{background:#fff;border-radius:12px;border:1px solid #e3e6f0;padding:16px;margin-bottom:14px}
+.ft{font-size:13px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+.fr{margin-bottom:11px}
+.fr label{display:block;font-size:12px;color:#444;font-weight:600;margin-bottom:3px}
+.fr input,.fr select,.fr textarea{width:100%;border:1.5px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;outline:none;background:#fff;color:#222}
+.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:#0d1b2a}
+.fr-row{display:flex;gap:10px}.fr-row .fr{flex:1}
+.fr-sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 7px;padding-bottom:3px;border-bottom:1px solid #eee}
+
+/* ALERTS */
+.al{border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;display:flex;align-items:center;gap:8px}
+.al-red{background:#fde8e8;border:1px solid #e74c3c;color:#7b1818}
+.al-blue{background:#e8f4fd;border:1px solid #3498db;color:#1a5276}
+.al-green{background:#e8f8f0;border:1px solid #27ae60;color:#1a5e36}
+.al-orange{background:#fff8e1;border:1px solid #f39c12;color:#7a5200}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+.mb{background:#fff;border-radius:14px;padding:22px;width:100%;max-width:620px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.mt{font-size:15px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+.mc{cursor:pointer;font-size:18px;color:#888;background:none;border:none;line-height:1}
+
+/* PROFILE */
+.profil-card{background:#fff;border-radius:12px;border:1px solid #e3e6f0;padding:18px;display:flex;gap:18px;align-items:flex-start;margin-bottom:14px}
+.profil-img{width:72px;height:72px;object-fit:contain;background:#1a1a2e;border-radius:8px;padding:3px;flex-shrink:0}
+.profil-info h2{font-size:17px;font-weight:700;margin-bottom:3px}
+.profil-info p{font-size:12px;color:#555;margin-bottom:2px}
+.profil-rio{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:5px;margin-top:5px}
+
+/* GRADE CARD */
+.grades-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px}
+.grade-card{background:#fff;border-radius:9px;border:1px solid #e3e6f0;padding:11px;text-align:center}
+.grade-card:hover{border-color:#0d1b2a}
+.grade-img-sm{width:50px;height:50px;object-fit:contain;margin:0 auto 6px;display:block;border-radius:5px;padding:2px}
+.grade-name-sm{font-size:10px;font-weight:700;line-height:1.3}
+.grade-code-sm{font-size:9px;color:#888}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;padding:11px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;display:none;color:#fff}
+
+/* PERMISSION TAGS */
+.perm-tag{display:inline-block;background:#e8f0ff;color:#2c3e8c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin:2px}
+
+/* TIMELINE */
+.timeline{list-style:none;padding:0}
+.timeline li{position:relative;padding:0 0 14px 24px;font-size:12px;color:#1b1919}
+.timeline li::before{content:'';position:absolute;left:6px;top:4px;width:8px;height:8px;border-radius:50%;background:#0d1b2a}
+.timeline li::after{content:'';position:absolute;left:9px;top:12px;width:1px;height:calc(100% - 8px);background:#ddd}
+.timeline li:last-child::after{display:none}
+.timeline li strong{color:#222;display:block;font-size:12px}
+
+/* ELEARNING */
+.module-card{background:#fff;border-radius:10px;border:1px solid #e3e6f0;padding:14px;margin-bottom:12px}
+.module-img{width:100%;border-radius:6px;object-fit:cover;max-height:140px;margin-bottom:8px;display:block}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="login-screen">
+  <div class="lbox">
+    <div class="llogo">
+      <div class="llogo-icon">⚜️</div>
+      <div class="llogo-text">Gendarmerie Nationale<span>Intranet sécurisé — DGGN</span></div>
+    </div>
+    <div class="ltitle">Connexion</div>
+    <hr class="lhr">
+    <div class="fg"><label>Identifiant :</label><input type="text" id="lid" placeholder="Matricule / identifiant"></div>
+    <div class="fg"><label>Mot de passe :</label><input type="password" id="lpw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="lerr" id="lerr">Identifiant ou mot de passe incorrect.</div>
+    <button class="btn-login" onclick="doLogin()">Se connecter</button>
+    <div style="margin-top:14px;text-align:center;font-size:11px;color:#aaa">PLATEFORME FICTIVE — AUCUNE VALEUR RÉELLE</div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand"><div class="topbar-logo">⚜️</div><span>NEOGN — Gendarmerie Nationale</span></div>
+    <div class="topbar-search"><input type="text" placeholder="Recherche..." id="search-input"></div>
+    <div class="topbar-right">
+      <div class="topbar-user" onclick="toggleUD()">
+        👤 <span id="nav-name">—</span> ▾
+        <div class="udrop" id="udrop">
+          <div class="udrop-name" id="ud-name">—</div>
+          <div class="udrop-meta" id="ud-meta">—</div>
+          <img class="udrop-grade-img" id="ud-img" src="" alt="" onerror="this.style.display='none'">
+          <div style="font-size:12px;color:#555;margin-bottom:3px">Grade : <strong id="ud-grade">—</strong></div>
+          <div style="font-size:12px;color:#555;margin-bottom:10px">RIO/Mat. : <strong id="ud-rio">—</strong></div>
+          <button class="btn-logout" onclick="doLogout()">↩ Déconnexion</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="modals"></div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG
+// ============================================================
+const FB = {
+  apiKey: "AIzaSyA0tL5MXK_YWC1tJ4vIPkrsWmKubJvBJnA",
+  authDomain: "database-fdo-14a99.firebaseapp.com",
+  projectId: "database-fdo-14a99",
+  storageBucket: "database-fdo-14a99.firebasestorage.app",
+  messagingSenderId: "486592511979",
+  appId: "1:486592511979:web:80dc08e6a1ebd33f3b23ae"
+};
+let db = null;
+try { firebase.initializeApp(FB); db = firebase.firestore(); } catch(e) {}
+
+// ============================================================
+// WEBHOOKS
+// ============================================================
+const WH = {
+  conge_gn:'https://discord.com/api/webhooks/1495466529813430402/By8ucy5tyExJxwXs4gssMa8vbqGRvXPEkk3vmu3X0-GKAsMnu9BOmOBmEfGnpzNbC4ps',
+  formation_gn:'https://discord.com/api/webhooks/1495467730176966696/A62gWdR3NaCYvZiXi3KyTUYkbWxxubQSESeCug9OGrv1-72PCn7jigyPRlBDdiBh5NYI',
+};
+
+// ============================================================
+// DEMO USERS
+// ============================================================
+const DEMO = {
+  fondateur: {pw:'Fondateur2026!',role:'FONDATEUR',nom:'Fondateur',prenom:'NEOGN',service:'gn'},
+  admin_gn:  {pw:'AdminGN2026',role:'ADMIN',nom:'Admin',prenom:'GN',service:'gn',grade:'COL',rio:'GN-00001',aptCorg:true,aptRh:true,formateur:true,aptOPJ:true},
+  gendarme:  {pw:'Gn1234',role:'SOG',nom:'MARTIN',prenom:'Jean',service:'gn',grade:'MDL',rio:'GN-00142',aptCorg:false,aptRh:false,formateur:false,aptOPJ:false},
+};
+let DEMO_USERS = {...DEMO};
+
+// ============================================================
+// GRADES GN
+// ============================================================
+const GRADES_GN = [
+  {code:'GAV',name:'Gendarme adjoint vol.',img:'grades/1.GAV.png',order:1},
+  {code:'BRI',name:'Brigadier',img:'grades/3.BRI.png',order:2},
+  {code:'BRC',name:'Brigadier-chef',img:'grades/4.BRC.png',order:3},
+  {code:'MDL',name:'Maréchal des logis',img:'grades/5.MDL.png',order:4},
+  {code:'ESOG',name:'Élève sous-officier',img:'grades/6.ESOG.png',order:5},
+  {code:'GND',name:'Gendarme',img:'grades/8.GND.png',order:6},
+  {code:'MDC',name:'Maréchal des logis-chef',img:'grades/9.MDC.png',order:7},
+  {code:'ADJ',name:'Adjudant',img:'grades/10.ADJ.png',order:8},
+  {code:'ADC',name:'Adjudant-chef',img:'grades/11.ADC.png',order:9},
+  {code:'MJR',name:'Major',img:'grades/12.MJR.png',order:10},
+  {code:'ASP',name:'Aspirant',img:'grades/13.ASP.png',order:11},
+  {code:'LT',name:'Lieutenant',img:'grades/16.LT.png',order:12},
+  {code:'CNE',name:'Capitaine',img:'grades/17.CNE.png',order:13},
+  {code:'CDT',name:'Commandant',img:'grades/18.CDT.png',order:14},
+  {code:'LCL',name:'Lieutenant-colonel',img:'grades/19.LCL.png',order:15},
+  {code:'COL',name:'Colonel',img:'grades/20.COL.png',order:16},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+const SERVICE = 'gn';
+let CU = null;
+let GRADES = [...GRADES_GN];
+let customRoles = {gn:[]};
+let MEM = {
+  mentions:[],interventions:[],patrouilles:[],procedures:[],
+  fpr:[],taj:[],foves:[],formations:[],examens:[],
+  vehicules:[],armement:[],agenda:[],modules:[],avancement:[],
+  stats_gn:{interventions:0,gav:0,patrouilles:0,procedures:0},
+  webhooks:{conge_gn:WH.conge_gn,formation_gn:WH.formation_gn},
+  typeInterventions:{gn:['Urgence','Accident','Flagrant délit','Patrouille','Information']},
+  aptitudes:{gn:['Apte CORG','Apte RH','Formateur','OPJ']},
+};
+
+// ============================================================
+// UTILS
+// ============================================================
+function $(id){return document.getElementById(id)}
+function showToast(msg,ok=true){
+  let t=$('toast');t.textContent=msg;
+  t.style.background=ok?'#27ae60':'#c0392b';t.style.display='block';
+  setTimeout(()=>t.style.display='none',3500);
+}
+function badge(txt,type){return`<span class="b b-${type}">${txt||'—'}</span>`}
+function fmtDate(v){if(!v)return'—';try{let d=v.toDate?v.toDate():new Date(v);return d.toLocaleDateString('fr-FR');}catch{return v;}}
+function fmtNow(){return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
+function confirm2(msg){return confirm(msg);}
+function gradeOf(code){return GRADES.find(g=>g.code===code)||{code,name:code,img:''};}
+function gradeName(code){let g=gradeOf(code);return g.name+' ('+g.code+')';}
+function gradeImg(code){return gradeOf(code).img||'';}
+function hasPerm(perm){
+  if(!CU)return false;
+  if(CU.role==='ADMIN'||CU.role==='FONDATEUR')return true;
+  if(perm==='corg')return CU.aptCorg||false;
+  if(perm==='rh')return CU.aptRh||false;
+  if(perm==='formateur')return CU.formateur||false;
+  if(perm==='opj')return CU.aptOPJ||false;
+  if(perm==='agenda'){
+    let roles=customRoles['gn']||[];
+    let r=roles.find(r=>r.name===CU.role);
+    return r&&r.perms&&r.perms.includes('agenda');
+  }
+  return false;
+}
+
+// ============================================================
+// FIREBASE HELPERS — ROBUSTES
+// ============================================================
+async function dbGet(col,filters=[]){
+  try{
+    let q=db.collection(col);
+    filters.forEach(([f,op,v])=>q=q.where(f,op,v));
+    let s=await q.get();
+    return s.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{
+    let data=MEM[col]||[];
+    if(filters.length){
+      data=data.filter(item=>filters.every(([f,,v])=>item[f]===v));
+    }
+    return data;
+  }
+}
+async function dbAdd(col,data){
+  try{
+    let r=await db.collection(col).add({...data,_ts:firebase.firestore.FieldValue.serverTimestamp()});
+    // Sync local aussi pour affichage immédiat
+    let newItem={id:r.id,...data,_ts:new Date().toISOString()};
+    if(!MEM[col])MEM[col]=[];
+    MEM[col].unshift(newItem);
+    return r.id;
+  }catch{
+    let id=uid();
+    if(!MEM[col])MEM[col]=[];
+    MEM[col].unshift({id,...data,_ts:new Date().toISOString()});
+    return id;
+  }
+}
+async function dbSet(col,id,data){
+  try{
+    await db.collection(col).doc(id).set(data,{merge:true});
+  }catch{}
+  // Toujours mettre à jour MEM
+  if(!MEM[col])MEM[col]=[];
+  let i=MEM[col].findIndex(x=>x.id===id);
+  if(i>=0)MEM[col][i]={...MEM[col][i],...data};
+  else MEM[col].push({id,...data});
+}
+async function dbUpdate(col,id,data){
+  try{
+    await db.collection(col).doc(id).update(data);
+  }catch{}
+  // Toujours mettre à jour MEM
+  if(!MEM[col])MEM[col]=[];
+  let i=MEM[col].findIndex(x=>x.id===id);
+  if(i>=0)Object.assign(MEM[col][i],data);
+}
+async function dbDelete(col,id){
+  try{await db.collection(col).doc(id).delete();}catch{}
+  if(MEM[col])MEM[col]=MEM[col].filter(x=>x.id!==id);
+}
+async function dbGetOne(col,id){
+  try{
+    let d=await db.collection(col).doc(id).get();
+    if(d.exists){
+      // Sync MEM
+      let item={id:d.id,...d.data()};
+      if(!MEM[col])MEM[col]=[];
+      let i=MEM[col].findIndex(x=>x.id===id);
+      if(i>=0)MEM[col][i]=item;else MEM[col].push(item);
+      return item;
+    }
+  }catch{}
+  return (MEM[col]||[]).find(x=>x.id===id)||null;
+}
+async function incrStat(field,n=1){
+  let key='stats_gn';
+  if(!MEM[key])MEM[key]={};
+  MEM[key][field]=(MEM[key][field]||0)+n;
+  try{
+    await db.collection('stats').doc('gn').set({[field]:firebase.firestore.FieldValue.increment(n)},{merge:true});
+  }catch{}
+}
+async function sendWebhook(url,payload){
+  try{await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
+  catch(e){console.warn('Webhook failed:',e);}
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+async function doLogin(){
+  let id=$('lid').value.trim();
+  let pw=$('lpw').value;
+  if(!id||!pw){$('lerr').textContent='Remplissez tous les champs.';$('lerr').style.display='block';return;}
+  let u=null;
+  try{
+    let snap=await db.collection('users').where('identifiant','==',id).where('service','==','gn').limit(1).get();
+    if(!snap.empty){let d=snap.docs[0];let data=d.data();if(data.password===pw)u={uid:d.id,...data};}
+  }catch{}
+  if(!u){
+    // Fallback démo
+    let du=DEMO_USERS[id];
+    if(du&&du.pw===pw&&du.service==='gn') u={uid:id,identifiant:id,...du};
+    // Accès fondateur via mdp
+    if(!u&&id==='fondateur'){let du2=DEMO_USERS['fondateur'];if(du2&&du2.pw===pw)u={uid:'fondateur',identifiant:'fondateur',...du2,service:'gn'};}
+  }
+  if(!u){$('lerr').textContent='Identifiant ou mot de passe incorrect.';$('lerr').style.display='block';return;}
+  CU=u;
+  $('lerr').style.display='none';
+  // Charger grades depuis Firebase si dispo
+  try{
+    let gs=await db.collection('grades').where('service','==','gn').orderBy('order').get();
+    if(!gs.empty)GRADES=gs.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{}
+  $('login-screen').style.display='none';
+  buildApp();
+}
+function doLogout(){
+  CU=null;
+  $('app').style.display='none';
+  $('login-screen').style.display='flex';
+  $('lid').value='';$('lpw').value='';
+}
+function toggleUD(){$('udrop').classList.toggle('open');}
+
+// ============================================================
+// BUILD APP
+// ============================================================
+function buildApp(){
+  let app=$('app');app.style.display='flex';
+  $('nav-name').textContent=CU.nom+' '+CU.prenom;
+  $('ud-name').textContent=CU.nom+' '+CU.prenom;
+  $('ud-meta').textContent='GN | Rôle: '+(CU.role||'—');
+  $('ud-grade').textContent=CU.grade?gradeName(CU.grade):'—';
+  $('ud-rio').textContent=CU.rio||CU.matricule||'—';
+  if(CU.grade){let img=$('ud-img');img.src=gradeImg(CU.grade);img.style.display='block';}
+  buildSidebar();
+  renderPage('dashboard');
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function buildSidebar(){
+  let u=CU;let html='';
+  html+=nav('dashboard','🏠','Tableau de bord');
+  html+=sec('Opérations');
+  html+=nav('mentionservice','📋','Mention de service');
+  html+=nav('operations','🚓','Interventions');
+  if(hasPerm('corg'))html+=nav('corg','📡','Panel CORG','CORG');
+  html+=sec('Judiciaire');
+  html+=nav('judiciaire','⚖️','Procédures');
+  html+=nav('bases','📡','Bases de données');
+  html+=sec('Personnel');
+  html+=nav('personnel','👮','Gestion personnel');
+  html+=nav('grades','🎖️','Grades');
+  html+=nav('formation','🎓','Formation');
+  if(hasPerm('rh'))html+=nav('rh','📊','RH & administratif');
+  html+=sec('Ressources');
+  if(hasPerm('opj'))html+=nav('documents','📁','Documents & Procédures');
+  html+=nav('logistique','🚒','Logistique');
+  html+=nav('statistiques','📈','Statistiques');
+  if(u.role==='ADMIN'||u.role==='FONDATEUR'){
+    html+=sec('Administration');
+    html+=nav('admin','⚙️','Administration');
+    html+=nav('admin-grades','🎖️','Gestion grades');
+    html+=nav('admin-roles','🎭','Rôles & Permissions');
+    html+=nav('admin-vehicules','🚗','Parc véhicules');
+    html+=nav('admin-armes','🔫','Armement');
+    html+=nav('admin-aptitudes','🏅','Aptitudes');
+    html+=nav('admin-types','🗂️','Types intervention');
+  }
+  $('sidebar').innerHTML=html;
+}
+function nav(page,icon,label,badge=''){
+  return`<div class="nav-item" id="ni-${page}" onclick="renderPage('${page}')">
+    <span class="ni">${icon}</span>${label}${badge?`<span class="nav-badge">${badge}</span>`:''}
+  </div>`;
+}
+function sec(t){return`<div class="sidebar-section">${t}</div>`;}
+
+// ============================================================
+// ROUTER
+// ============================================================
+function renderPage(page){
+  document.querySelectorAll('.nav-item').forEach(n=>{n.classList.remove('active');n.style.background='';n.style.color='';});
+  let ni=$(`ni-${page}`);
+  if(ni){ni.classList.add('active');}
+  $('udrop').classList.remove('open');
+  let fn=PAGES[page]||PAGES['dashboard'];
+  $('content').innerHTML='<div style="padding:30px;text-align:center;color:#888">Chargement…</div>';
+  fn();
+}
+
+// ============================================================
+// PAGES
+// ============================================================
+const PAGES = {};
+
+// ---- DASHBOARD ----
+PAGES['dashboard']=async function(){
+  let stats=MEM['stats_gn']||{interventions:0,gav:0,patrouilles:0,procedures:0};
+  try{let d=await dbGetOne('stats','gn');if(d)Object.assign(stats,d);}catch{}
+  let agenda=await dbGet('agenda',[['service','==','gn']]);
+  let canAgenda=hasPerm('agenda')||CU.role==='ADMIN';
+  $('content').innerHTML=`
+  <div class="page-title" style="color:#0d1b2a">⚜️ Tableau de bord</div>
+  <div class="page-sub">Bonjour ${CU.prenom} ${CU.nom} — ${CU.grade?gradeName(CU.grade):CU.role}</div>
+  <div class="sr">
+    <div class="st"><div class="st-n" style="color:#0d1b2a">${stats.interventions||0}</div><div class="st-l">Interventions en cours</div></div>
+    <div class="st"><div class="st-n" style="color:#0d1b2a">${stats.gav||0}</div><div class="st-l">Gardes à vue</div></div>
+    <div class="st"><div class="st-n" style="color:#0d1b2a">${stats.patrouilles||0}</div><div class="st-l">Patrouilles actives</div></div>
+    <div class="st"><div class="st-n" style="color:#0d1b2a">${stats.procedures||0}</div><div class="st-l">Procédures</div></div>
+  </div>
+  <div class="cards-grid">
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">Mention de service</div><div class="card-desc">Suivi en temps réel</div><button class="cbtn navy" onclick="renderPage('mentionservice')">Ouvrir</button></div>
+    <div class="card"><div class="card-icon">⚖️</div><div class="card-title">Judiciaire</div><div class="card-desc">Procédures en cours</div><button class="cbtn navy" onclick="renderPage('judiciaire')">Ouvrir</button></div>
+    <div class="card"><div class="card-icon">📡</div><div class="card-title">Bases de données</div><div class="card-desc">FPR, TAJ, FoVES</div><button class="cbtn navy" onclick="renderPage('bases')">Ouvrir</button></div>
+    <div class="card"><div class="card-icon">🎖️</div><div class="card-title">Grades</div><div class="card-desc">Tableau des grades</div><button class="cbtn navy" onclick="renderPage('grades')">Ouvrir</button></div>
+  </div>
+  <div class="tw">
+    <div class="th">📅 Agenda — Événements à venir
+      ${canAgenda?`<button class="cbtn green" onclick="openModal('modal-agenda')">+ Ajouter</button>`:''}
+    </div>
+    <table><thead><tr><th>Date</th><th>Événement</th><th>Lieu</th><th>Type</th>${CU.role==='ADMIN'||CU.role==='FONDATEUR'?'<th>Action</th>':''}</tr></thead>
+    <tbody>${agenda.length?agenda.map(a=>`<tr>
+      <td>${fmtDate(a.date)}</td><td>${a.titre||'—'}</td><td>${a.lieu||'—'}</td>
+      <td>${badge(a.type||'Info','blue')}</td>
+      ${CU.role==='ADMIN'||CU.role==='FONDATEUR'?`<td><button class="cbtn red" onclick="delAgenda('${a.id}')">Suppr.</button></td>`:''}
+    </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888;padding:14px">Aucun événement</td></tr>'}
+    </tbody></table>
+  </div>
+  ${showModal('modal-agenda','📅 Ajouter un événement',`
+    <div class="fr-row"><div class="fr"><label>Date</label><input type="date" id="ag-date"></div><div class="fr"><label>Type</label><select id="ag-type"><option>Info</option><option>Formation</option><option>Opérationnel</option><option>RH</option></select></div></div>
+    <div class="fr"><label>Titre</label><input type="text" id="ag-titre" placeholder="Titre de l'événement"></div>
+    <div class="fr"><label>Lieu</label><input type="text" id="ag-lieu"></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveAgenda()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-agenda')">Annuler</button></div>
+  `)}`;
+};
+async function saveAgenda(){
+  let data={titre:$('ag-titre').value,date:$('ag-date').value,lieu:$('ag-lieu').value,type:$('ag-type').value,service:'gn'};
+  if(!data.titre){showToast('Titre requis',false);return;}
+  await dbAdd('agenda',data);showToast('Événement ajouté !');closeModal('modal-agenda');renderPage('dashboard');
+}
+async function delAgenda(id){
+  if(!confirm2('Supprimer cet événement ?'))return;
+  await dbDelete('agenda',id);renderPage('dashboard');
+}
+
+// ---- MENTION DE SERVICE ----
+PAGES['mentionservice']=async function(){
+  let items=await dbGet('mentions',[['service','==','gn']]);
+  let ec=items.filter(x=>x.statut==='En cours').length;
+  let cl=items.filter(x=>x.statut==='Clôturé').length;
+  let types=(MEM.typeInterventions||{})['gn']||['Urgence','Accident','Flagrant délit','Information'];
+  $('content').innerHTML=`
+  <div class="page-title">Mention de service</div>
+  <div class="page-sub">Événements du service</div>
+  <div class="sr">
+    <div class="st"><div class="st-n">${items.length}</div><div class="st-l">Événements</div></div>
+    <div class="st"><div class="st-n" style="color:#e67e22">${ec}</div><div class="st-l">En cours</div></div>
+    <div class="st"><div class="st-n" style="color:#27ae60">${cl}</div><div class="st-l">Clôturés</div></div>
+  </div>
+  <div class="tw">
+    <div class="th">Mention de service
+      ${CU.role==='ADMIN'||CU.role==='FONDATEUR'?`<button class="cbtn green" onclick="openModal('modal-mc')">+ Ajouter</button>`:''}
+    </div>
+    <table><thead><tr><th>Heure</th><th>Type</th><th>Description</th><th>Lieu</th><th>Unité</th><th>Statut</th>${CU.role==='ADMIN'||CU.role==='FONDATEUR'?'<th>Action</th>':''}</tr></thead>
+    <tbody>${items.length?items.slice(0,50).map(x=>`<tr>
+      <td>${x.heure||'—'}</td>
+      <td>${badge(x.type||'Info',x.type==='Urgence'?'red':x.type==='Accident'?'orange':'blue')}</td>
+      <td>${x.description||'—'}</td><td>${x.lieu||'—'}</td><td>${x.unite||'—'}</td>
+      <td>${badge(x.statut||'En cours',x.statut==='Clôturé'?'green':'orange')}</td>
+      ${CU.role==='ADMIN'||CU.role==='FONDATEUR'?`<td><button class="cbtn green" onclick="clotureMC('${x.id}')">Clôturer</button> <button class="cbtn red" onclick="delMC('${x.id}')">Suppr.</button></td>`:''}
+    </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucun événement</td></tr>'}
+    </tbody></table>
+  </div>
+  ${showModal('modal-mc','➕ Enregistrer un événement',`
+    <div class="fr-row">
+      <div class="fr"><label>Type</label><select id="mc-type">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="fr"><label>Heure</label><input type="time" id="mc-heure" value="${fmtNow()}"></div>
+    </div>
+    <div class="fr"><label>Description</label><input type="text" id="mc-desc"></div>
+    <div class="fr-row"><div class="fr"><label>Lieu</label><input type="text" id="mc-lieu"></div><div class="fr"><label>Unité</label><input type="text" id="mc-unite"></div></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveMC()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-mc')">Annuler</button></div>
+  `)}`;
+};
+async function saveMC(){
+  let data={type:$('mc-type').value,heure:$('mc-heure').value,description:$('mc-desc').value,lieu:$('mc-lieu').value,unite:$('mc-unite').value,statut:'En cours',service:'gn',auteur:CU.rio||CU.uid};
+  await dbAdd('mentions',data);await incrStat('interventions');
+  showToast('Événement enregistré !');closeModal('modal-mc');renderPage('mentionservice');
+}
+async function clotureMC(id){await dbUpdate('mentions',id,{statut:'Clôturé'});showToast('Clôturé !');renderPage('mentionservice');}
+async function delMC(id){if(!confirm2('Supprimer ?'))return;await dbDelete('mentions',id);renderPage('mentionservice');}
+
+// ---- INTERVENTIONS ----
+PAGES['operations']=async function(){
+  let patrouilles=await dbGet('patrouilles',[['service','==','gn']]);
+  let interv=await dbGet('interventions',[['service','==','gn']]);
+  let agents=0;patrouilles.forEach(x=>{if(x.equipage)agents+=x.equipage.split(',').length;});
+  $('content').innerHTML=`
+  <div class="page-title">Interventions</div>
+  <div class="page-sub">Synchronisé avec le CORG</div>
+  <div class="sr">
+    <div class="st"><div class="st-n">${patrouilles.filter(x=>x.statut!=='Terminée').length}</div><div class="st-l">Patrouilles actives</div></div>
+    <div class="st"><div class="st-n" style="color:#e74c3c">${interv.filter(x=>x.statut==='En cours').length}</div><div class="st-l">Interventions en cours</div></div>
+    <div class="st"><div class="st-n">${agents}</div><div class="st-l">Agents en service</div></div>
+  </div>
+  ${hasPerm('corg')?`<div class="al al-blue">Vous avez accès au Panel CORG — <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="renderPage('corg')">Cliquez ici</span></div>`:''}
+  <div class="tw"><div class="th">🚓 Patrouilles actives</div>
+  <table><thead><tr><th>Équipage</th><th>Véhicule</th><th>Secteur</th><th>Heure</th><th>Statut</th></tr></thead>
+  <tbody>${patrouilles.filter(x=>x.statut!=='Terminée').map(x=>`<tr>
+    <td>${x.equipage||'—'}</td><td>${x.vehicule||'—'}</td><td>${x.secteur||'—'}</td><td>${x.heure||'—'}</td>
+    <td>${badge(x.statut||'Patrouille',x.statut==='Intervention'?'red':'green')}</td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#888;padding:14px">Aucune patrouille</td></tr>'}
+  </tbody></table></div>
+  <div class="tw"><div class="th">⚡ Interventions récentes</div>
+  <table><thead><tr><th>Heure</th><th>Type</th><th>Description</th><th>Lieu</th><th>Statut</th></tr></thead>
+  <tbody>${interv.slice(0,20).map(x=>`<tr>
+    <td>${x.heure||'—'}</td><td>${badge(x.type||'—',x.type==='Urgence'?'red':'orange')}</td>
+    <td>${x.description||'—'}</td><td>${x.lieu||'—'}</td>
+    <td>${badge(x.statut,x.statut==='Clôturé'?'green':'orange')}</td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#888;padding:14px">Aucune intervention</td></tr>'}
+  </tbody></table></div>
+  ${hasPerm('corg')?`
+  <div class="fc"><div class="ft">🚓 Créer une patrouille (SOG+)</div>
+    <div class="fr-row"><div class="fr"><label>Équipage</label><input type="text" id="pat-eq" placeholder="Noms séparés par virgule"></div><div class="fr"><label>Véhicule</label><input type="text" id="pat-veh" placeholder="Immat."></div></div>
+    <div class="fr-row"><div class="fr"><label>Secteur</label><input type="text" id="pat-sec"></div><div class="fr"><label>Heure</label><input type="time" id="pat-h" value="${fmtNow()}"></div></div>
+    <button class="cbtn green" onclick="savePatrouille()">Créer la patrouille</button>
+  </div>`:''}`;
+};
+async function savePatrouille(){
+  let data={equipage:$('pat-eq').value,vehicule:$('pat-veh').value,secteur:$('pat-sec').value,heure:$('pat-h').value,statut:'Patrouille',service:'gn',createdBy:CU.uid};
+  if(!data.equipage){showToast('Équipage requis',false);return;}
+  await dbAdd('patrouilles',data);await incrStat('patrouilles');
+  showToast('Patrouille créée !');renderPage('operations');
+}
+
+// ---- CORG ----
+PAGES['corg']=async function(){
+  let interv=await dbGet('interventions',[['service','==','gn']]);
+  let patrouilles=await dbGet('patrouilles',[['service','==','gn']]);
+  let types=(MEM.typeInterventions||{})['gn']||['Urgence','Accident','Flagrant délit','Patrouille','Information'];
+  let vehicules=await dbGet('vehicules',[['service','==','gn']]);
+  let ec=interv.filter(x=>x.statut==='En cours').length;
+  let agents=0;patrouilles.filter(x=>x.statut!=='Terminée').forEach(x=>{if(x.equipage)agents+=x.equipage.split(',').length;});
+  $('content').innerHTML=`
+  <div class="page-title">Panel CORG</div>
+  <div class="page-sub">Centre opérationnel — gestion des interventions</div>
+  <div class="sr">
+    <div class="st"><div class="st-n">${interv.length}</div><div class="st-l">Total interventions</div></div>
+    <div class="st"><div class="st-n" style="color:#e74c3c">${ec}</div><div class="st-l">En cours</div></div>
+    <div class="st"><div class="st-n" style="color:#27ae60">${patrouilles.filter(x=>x.statut!=='Terminée').length}</div><div class="st-l">Patrouilles</div></div>
+    <div class="st"><div class="st-n">${agents}</div><div class="st-l">Agents engagés</div></div>
+  </div>
+  <div class="fc"><div class="ft">➕ Créer une intervention</div>
+    <div class="fr-row">
+      <div class="fr"><label>Type</label><select id="ci-type">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="fr"><label>Heure</label><input type="time" id="ci-heure" value="${fmtNow()}"></div>
+    </div>
+    <div class="fr"><label>Description</label><input type="text" id="ci-desc"></div>
+    <div class="fr-row"><div class="fr"><label>Lieu</label><input type="text" id="ci-lieu"></div><div class="fr"><label>Équipage</label><input type="text" id="ci-eq"></div></div>
+    <div class="fr-row">
+      <div class="fr"><label>Véhicule</label><select id="ci-veh"><option value="">— Sélectionner —</option>${vehicules.map(v=>`<option>${v.immat||''} — ${v.type||''}</option>`).join('')}</select></div>
+      <div class="fr"><label>Secteur</label><input type="text" id="ci-sec"></div>
+    </div>
+    <button class="cbtn green" onclick="saveCORG()">Créer l'intervention</button>
+  </div>
+  <div class="tw"><div class="th">⚡ Interventions actives <button class="cbtn navy" onclick="renderPage('corg')">↻</button></div>
+  <table><thead><tr><th>Heure</th><th>Type</th><th>Description</th><th>Lieu</th><th>Équipage</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${interv.slice(0,50).map(x=>`<tr>
+    <td>${x.heure||'—'}</td><td>${badge(x.type,x.type==='Urgence'?'red':'orange')}</td>
+    <td>${x.description||'—'}</td><td>${x.lieu||'—'}</td><td>${x.equipage||'—'}</td>
+    <td>${badge(x.statut,x.statut==='Clôturé'?'green':'orange')}</td>
+    <td><button class="cbtn green" onclick="corgCloture('${x.id}')">Clôturer</button> <button class="cbtn red" onclick="corgDel('${x.id}')">Suppr.</button></td>
+  </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucune</td></tr>'}
+  </tbody></table></div>
+  <div class="tw"><div class="th">🚓 Patrouilles</div>
+  <table><thead><tr><th>Équipage</th><th>Véhicule</th><th>Secteur</th><th>Heure</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${patrouilles.filter(x=>x.statut!=='Terminée').map(x=>`<tr>
+    <td>${x.equipage||'—'}</td><td>${x.vehicule||'—'}</td><td>${x.secteur||'—'}</td><td>${x.heure||'—'}</td>
+    <td>${badge(x.statut||'Patrouille','green')}</td>
+    <td><button class="cbtn red" onclick="corgTermPat('${x.id}')">Terminer</button></td>
+  </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucune</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveCORG(){
+  let type=$('ci-type').value;
+  let data={type,heure:$('ci-heure').value,description:$('ci-desc').value,lieu:$('ci-lieu').value,equipage:$('ci-eq').value,vehicule:$('ci-veh').value,secteur:$('ci-sec').value,statut:'En cours',service:'gn',createdBy:CU.uid};
+  let col=type==='Patrouille'?'patrouilles':'interventions';
+  await dbAdd(col,data);await incrStat('interventions');
+  await dbAdd('mentions',{...data,unite:data.equipage});
+  showToast('Intervention créée !');renderPage('corg');
+}
+async function corgCloture(id){await dbUpdate('interventions',id,{statut:'Clôturé'});showToast('Clôturé !');renderPage('corg');}
+async function corgDel(id){if(!confirm2('Supprimer ?'))return;await dbDelete('interventions',id);renderPage('corg');}
+async function corgTermPat(id){await dbUpdate('patrouilles',id,{statut:'Terminée'});showToast('Terminée !');renderPage('corg');}
+
+// ---- JUDICIAIRE ----
+PAGES['judiciaire']=async function(){
+  let procs=await dbGet('procedures',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Procédures judiciaires</div>
+  <div class="page-sub">Rédaction et suivi des procédures</div>
+  <div class="tw"><div class="th">⚖️ Procédures
+    <button class="cbtn green" onclick="openModal('modal-proc')">+ Rédiger</button>
+  </div>
+  <table><thead><tr><th>N°</th><th>Nature</th><th>Rédacteur</th><th>Date</th><th>Parquet</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${procs.length?procs.map((x,i)=>`<tr>
+    <td>GN-${String(i+1).padStart(4,'0')}</td>
+    <td>${x.titre||'—'}</td><td>${x.auteurNom||'—'}</td><td>${fmtDate(x._ts)}</td>
+    <td>${x.parquet||'—'}</td>
+    <td>${badge(x.statut||'En cours',x.statut==='Transmis'?'green':'orange')}</td>
+    <td>
+      <button class="cbtn navy" onclick="viewProc('${x.id}')">Voir</button>
+      <button class="cbtn green" onclick="exportProcPDF('${x.id}')">PDF</button>
+      ${hasPerm('opj')?`<button class="cbtn red" onclick="delProc('${x.id}')">Suppr.</button>`:''}
+    </td>
+  </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucune procédure</td></tr>'}
+  </tbody></table></div>
+  ${showModal('modal-proc','📝 Rédiger une procédure',buildProcForm())}
+  ${showModal('modal-view-proc','Procédure','<div id="proc-view-body"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="cbtn green" onclick="exportProcPDF(window._vProcId)">📄 PDF</button><button class="cbtn red" onclick="closeModal(\'modal-view-proc\')">Fermer</button></div>')}`;
+};
+function buildProcForm(){
+  return`<div class="fr"><label>Nature / Titre *</label><input type="text" id="pf-titre" placeholder="Ex: Procédure de garde à vue"></div>
+    <div class="fr-row"><div class="fr"><label>Type</label><select id="pf-type"><option>GAV</option><option>Perquisition</option><option>PV flagrance</option><option>Plainte</option><option>Audition</option><option>Autre</option></select></div><div class="fr"><label>Parquet</label><input type="text" id="pf-parquet"></div></div>
+    <div class="fr-sec">Mis en cause</div>
+    <div class="fr-row"><div class="fr"><label>Nom</label><input type="text" id="pf-nom"></div><div class="fr"><label>Prénom</label><input type="text" id="pf-prenom"></div></div>
+    <div class="fr-row"><div class="fr"><label>DDN</label><input type="date" id="pf-ddn"></div><div class="fr"><label>Nationalité</label><input type="text" id="pf-nat"></div></div>
+    <div class="fr"><label>Faits reprochés</label><textarea id="pf-faits" rows="3"></textarea></div>
+    <div class="fr"><label>Article de loi / NATINF</label><input type="text" id="pf-natinf"></div>
+    <div class="fr-sec">Circonstances</div>
+    <div class="fr-row"><div class="fr"><label>Date des faits</label><input type="date" id="pf-dfaits"></div><div class="fr"><label>Lieu des faits</label><input type="text" id="pf-lfaits"></div></div>
+    <div class="fr"><label>Observations / suite donnée</label><textarea id="pf-obs" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="cbtn green" onclick="saveProc()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-proc')">Annuler</button></div>`;
+}
+async function saveProc(){
+  let data={titre:$('pf-titre').value,type:$('pf-type').value,parquet:$('pf-parquet').value,
+    nom:$('pf-nom').value,prenom:$('pf-prenom').value,ddn:$('pf-ddn').value,nat:$('pf-nat').value,
+    faits:$('pf-faits').value,natinf:$('pf-natinf').value,dfaits:$('pf-dfaits').value,lfaits:$('pf-lfaits').value,
+    obs:$('pf-obs').value,statut:'En cours',service:'gn',auteurNom:CU.nom+' '+CU.prenom,auteurRio:CU.rio||CU.uid};
+  if(!data.titre){showToast('Titre requis',false);return;}
+  await dbAdd('procedures',data);await incrStat('procedures');
+  showToast('Procédure enregistrée !');closeModal('modal-proc');renderPage('judiciaire');
+}
+async function viewProc(id){
+  let x=await dbGetOne('procedures',id);if(!x)return;
+  window._vProcId=id;
+  $('proc-view-body').innerHTML=procHTML(x);openModal('modal-view-proc');
+}
+function procHTML(x){
+  let row=(l,v)=>`<tr><td style="padding:5px 0;color:#666;font-weight:600;width:180px">${l}</td><td>${v||'—'}</td></tr>`;
+  return`<table style="width:100%;font-size:12px;border-collapse:collapse">
+    ${row('Type',x.type)}${row('Nature',x.titre)}${row('Parquet',x.parquet)}
+    ${row('Mis en cause',`${x.nom||''} ${x.prenom||''}`)}${row('DDN',x.ddn)}${row('Nationalité',x.nat)}
+    ${row('Faits',x.faits)}${row('NATINF',x.natinf)}${row('Date des faits',x.dfaits)}${row('Lieu',x.lfaits)}
+    ${row('Observations',x.obs)}${row('Rédacteur',x.auteurNom)}${row('Statut',x.statut)}
+  </table>`;
+}
+async function delProc(id){
+  if(!confirm2('⚠️ Supprimer cette procédure ? Action irréversible.'))return;
+  await dbDelete('procedures',id);showToast('Procédure supprimée.');renderPage('judiciaire');
+}
+async function exportProcPDF(id){
+  let x=await dbGetOne('procedures',id);if(!x)return;
+  let w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>${x.titre}</title>
+  <style>body{font-family:Arial,sans-serif;padding:40px;max-width:720px;margin:0 auto}
+  h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:16px}
+  .sec{font-size:12px;font-weight:700;text-transform:uppercase;margin:14px 0 6px;color:#555;border-bottom:1px solid #eee}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  td{padding:6px 8px;font-size:12px;border-bottom:1px solid #f0f0f0}
+  td:first-child{font-weight:600;color:#444;width:180px}
+  .footer{margin-top:40px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px}</style>
+  </head><body>
+  <div style="text-align:center;margin-bottom:20px"><strong style="font-size:18px">PROCÉDURE JUDICIAIRE</strong><br><span style="font-size:13px;color:#555">Gendarmerie Nationale</span></div>
+  <div class="sec">Identification</div>
+  <table><tr><td>Type</td><td>${x.type||'—'}</td></tr><tr><td>Nature</td><td>${x.titre||'—'}</td></tr><tr><td>N° Parquet</td><td>${x.parquet||'—'}</td></tr></table>
+  <div class="sec">Mis en cause</div>
+  <table><tr><td>Nom Prénom</td><td>${x.nom||''} ${x.prenom||''}</td></tr><tr><td>Date de naissance</td><td>${x.ddn||'—'}</td></tr><tr><td>Nationalité</td><td>${x.nat||'—'}</td></tr></table>
+  <div class="sec">Faits</div>
+  <table><tr><td>Description</td><td>${x.faits||'—'}</td></tr><tr><td>NATINF</td><td>${x.natinf||'—'}</td></tr><tr><td>Date</td><td>${x.dfaits||'—'}</td></tr><tr><td>Lieu</td><td>${x.lfaits||'—'}</td></tr></table>
+  <div class="sec">Rédaction</div>
+  <table><tr><td>Rédacteur</td><td>${x.auteurNom||'—'}</td></tr><tr><td>RIO/Mat.</td><td>${x.auteurRio||'—'}</td></tr><tr><td>Observations</td><td>${x.obs||'—'}</td></tr></table>
+  <div class="footer">Document généré le ${new Date().toLocaleDateString('fr-FR')} — NEOGN Gendarmerie Nationale</div>
+  </body></html>`);w.document.close();setTimeout(()=>w.print(),500);
+}
+
+// ---- DOCUMENTS ----
+PAGES['documents']=async function(){
+  if(!hasPerm('opj')&&CU.role!=='ADMIN'){$('content').innerHTML='<div class="al al-red">🔒 Accès réservé aux OPJ</div>';return;}
+  let procs=await dbGet('procedures',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Procédures & Documents</div>
+  <div class="page-sub">Accès réservé OPJ</div>
+  <div class="tw"><div class="th">📁 Documents <button class="cbtn green" onclick="openModal('modal-proc')">+ Créer</button></div>
+  <table><thead><tr><th>Titre</th><th>Type</th><th>Rédacteur</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${procs.length?procs.map(x=>`<tr>
+    <td>${x.titre||'—'}</td><td>${badge(x.type||'—','blue')}</td><td>${x.auteurNom||'—'}</td>
+    <td>${fmtDate(x._ts)}</td><td>${badge(x.statut||'En cours',x.statut==='Transmis'?'green':'orange')}</td>
+    <td>
+      <button class="cbtn navy" onclick="viewProc('${x.id}')">Voir</button>
+      <button class="cbtn green" onclick="exportProcPDF('${x.id}')">PDF</button>
+      <button class="cbtn red" onclick="delProc('${x.id}')">Suppr.</button>
+    </td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucun document</td></tr>'}
+  </tbody></table></div>
+  ${showModal('modal-proc','📝 Rédiger une procédure',buildProcForm())}
+  ${showModal('modal-view-proc','Procédure','<div id="proc-view-body"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="cbtn green" onclick="exportProcPDF(window._vProcId)">📄 PDF</button><button class="cbtn red" onclick="closeModal(\'modal-view-proc\')">Fermer</button></div>')}`;
+};
+
+// ---- BASES DE DONNÉES ----
+PAGES['bases']=async function(){
+  let fprs=await dbGet('fpr');
+  let tajs=await dbGet('taj');
+  let foves=await dbGet('foves');
+  $('content').innerHTML=`
+  <div class="page-title">Bases de données</div>
+  <div class="page-sub">Fichiers nationaux partagés GN/PN</div>
+  <div class="al al-red">🔒 Toute consultation est enregistrée. Usage strictement professionnel.</div>
+  <div class="cards-grid">
+    <div class="card"><div class="card-icon">🔍</div><div class="card-title">FPR</div><div class="card-desc">Personnes recherchées (${fprs.length})</div>
+      <button class="cbtn navy" onclick="renderPage('fpr')">Consulter</button>
+      <button class="cbtn green" onclick="openModal('modal-fpr')">+ Créer</button></div>
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">TAJ</div><div class="card-desc">Antécédents judiciaires (${tajs.length})</div>
+      <button class="cbtn navy" onclick="renderPage('taj')">Consulter</button>
+      <button class="cbtn green" onclick="openModal('modal-taj')">+ Créer</button></div>
+    <div class="card"><div class="card-icon">🚗</div><div class="card-title">FoVES</div><div class="card-desc">Objets/véhicules signalés (${foves.length})</div>
+      <button class="cbtn navy" onclick="renderPage('foves')">Consulter</button>
+      <button class="cbtn green" onclick="openModal('modal-foves')">+ Créer</button></div>
+  </div>
+  <div class="fc"><div class="ft">🔍 Recherche rapide — FPR / TAJ</div>
+    <div class="fr-row"><div class="fr"><label>Nom</label><input type="text" id="rq-nom"></div><div class="fr"><label>Prénom</label><input type="text" id="rq-prenom"></div><div class="fr"><label>DDN</label><input type="date" id="rq-ddn"></div></div>
+    <button class="cbtn navy" onclick="rechercheRapide()">Lancer la recherche</button>
+    <div id="rq-res" style="margin-top:12px"></div>
+  </div>
+  ${buildFPRModal()}${buildTAJModal()}${buildFoVESModal()}`;
+};
+function buildFPRModal(){return showModal('modal-fpr','🔍 Créer fiche FPR',`
+  <div class="fr-sec">Identité</div>
+  <div class="fr-row"><div class="fr"><label>Nom *</label><input type="text" id="fpr-nom"></div><div class="fr"><label>Prénom *</label><input type="text" id="fpr-prenom"></div></div>
+  <div class="fr-row"><div class="fr"><label>DDN</label><input type="date" id="fpr-ddn"></div><div class="fr"><label>Lieu de naissance</label><input type="text" id="fpr-lnais"></div></div>
+  <div class="fr"><label>Nationalité</label><input type="text" id="fpr-nat"></div>
+  <div class="fr-sec">Réseaux</div>
+  <div class="fr-row"><div class="fr"><label>Pseudo Roblox</label><input type="text" id="fpr-roblox"></div><div class="fr"><label>Pseudo Discord</label><input type="text" id="fpr-discord"></div></div>
+  <div class="fr-sec">Inculpation</div>
+  <div class="fr"><label>Raison (Article + NATINF)</label><textarea id="fpr-raison" rows="2"></textarea></div>
+  <div class="fr-sec">Agent saisissant</div>
+  <div class="fr-row"><div class="fr"><label>Nom + Prénom</label><input type="text" id="fpr-agent"></div><div class="fr"><label>Matricule/RIO</label><input type="text" id="fpr-mat"></div></div>
+  <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveFPR()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-fpr')">Annuler</button></div>`);}
+async function saveFPR(){
+  let d={nom:$('fpr-nom').value,prenom:$('fpr-prenom').value,ddn:$('fpr-ddn').value,lnais:$('fpr-lnais').value,nat:$('fpr-nat').value,roblox:$('fpr-roblox').value,discord:$('fpr-discord').value,raison:$('fpr-raison').value,agent:$('fpr-agent').value||CU.nom+' '+CU.prenom,matricule:$('fpr-mat').value||CU.rio||'',serviceCreateur:'gn'};
+  if(!d.nom||!d.prenom){showToast('Nom/prénom requis',false);return;}
+  await dbAdd('fpr',d);showToast('Fiche FPR créée !');closeModal('modal-fpr');renderPage('bases');
+}
+function buildTAJModal(){return showModal('modal-taj','📋 Créer fiche TAJ',`
+  <div class="fr-sec">Identité</div>
+  <div class="fr-row"><div class="fr"><label>Nom *</label><input type="text" id="taj-nom"></div><div class="fr"><label>Prénom *</label><input type="text" id="taj-prenom"></div></div>
+  <div class="fr-row"><div class="fr"><label>DDN</label><input type="date" id="taj-ddn"></div><div class="fr"><label>Lieu naissance</label><input type="text" id="taj-lnais"></div></div>
+  <div class="fr-row"><div class="fr"><label>Nationalité</label><input type="text" id="taj-nat"></div><div class="fr"><label>Sexe</label><select id="taj-sexe"><option>Homme</option><option>Femme</option></select></div></div>
+  <div class="fr-row"><div class="fr"><label>Poids (kg)</label><input type="number" id="taj-poids"></div><div class="fr"><label>Taille (cm)</label><input type="number" id="taj-taille"></div></div>
+  <div class="fr-sec">Réseaux</div>
+  <div class="fr-row"><div class="fr"><label>Pseudo Roblox</label><input type="text" id="taj-roblox"></div><div class="fr"><label>Pseudo Discord</label><input type="text" id="taj-discord"></div></div>
+  <div class="fr-sec">Inculpation</div>
+  <div class="fr"><label>Raison (Article + NATINF)</label><textarea id="taj-raison" rows="2"></textarea></div>
+  <div class="fr-row"><div class="fr"><label>Empreinte FNAEG</label><input type="text" id="taj-fnaeg"></div><div class="fr"><label>Photo (URL)</label><input type="text" id="taj-photo"></div></div>
+  <div class="fr-sec">Agent saisissant</div>
+  <div class="fr-row"><div class="fr"><label>Nom + Prénom</label><input type="text" id="taj-agent"></div><div class="fr"><label>Matricule/RIO</label><input type="text" id="taj-mat"></div></div>
+  <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveTAJ()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-taj')">Annuler</button></div>`);}
+async function saveTAJ(){
+  let d={nom:$('taj-nom').value,prenom:$('taj-prenom').value,ddn:$('taj-ddn').value,lnais:$('taj-lnais').value,nat:$('taj-nat').value,sexe:$('taj-sexe').value,poids:$('taj-poids').value,taille:$('taj-taille').value,roblox:$('taj-roblox').value,discord:$('taj-discord').value,raison:$('taj-raison').value,fnaeg:$('taj-fnaeg').value,photo:$('taj-photo').value,agent:$('taj-agent').value||CU.nom+' '+CU.prenom,matricule:$('taj-mat').value||CU.rio||'',serviceCreateur:'gn'};
+  if(!d.nom||!d.prenom){showToast('Nom/prénom requis',false);return;}
+  await dbAdd('taj',d);showToast('Fiche TAJ créée !');closeModal('modal-taj');renderPage('bases');
+}
+function buildFoVESModal(){return showModal('modal-foves','🚗 Créer fiche FoVES',`
+  <div class="fr-sec">Plaignant</div>
+  <div class="fr-row"><div class="fr"><label>Nom *</label><input type="text" id="fv-nom"></div><div class="fr"><label>Prénom *</label><input type="text" id="fv-prenom"></div></div>
+  <div class="fr-row"><div class="fr"><label>DDN</label><input type="date" id="fv-ddn"></div><div class="fr"><label>Nationalité</label><input type="text" id="fv-nat"></div></div>
+  <div class="fr-row"><div class="fr"><label>Pseudo Roblox</label><input type="text" id="fv-roblox"></div><div class="fr"><label>Pseudo Discord</label><input type="text" id="fv-discord"></div></div>
+  <div class="fr-sec">Véhicule volé</div>
+  <div class="fr-row"><div class="fr"><label>Marque</label><input type="text" id="fv-marque"></div><div class="fr"><label>Modèle</label><input type="text" id="fv-modele"></div></div>
+  <div class="fr-row"><div class="fr"><label>Couleur</label><input type="text" id="fv-couleur"></div><div class="fr"><label>Plaque</label><input type="text" id="fv-plaque"></div></div>
+  <div class="fr-row"><div class="fr"><label>Dommages</label><input type="text" id="fv-dom"></div><div class="fr"><label>Prop. Nom</label><input type="text" id="fv-pnom"></div></div>
+  <div class="fr-sec">Agent saisissant</div>
+  <div class="fr-row"><div class="fr"><label>Nom + Prénom</label><input type="text" id="fv-agent"></div><div class="fr"><label>Matricule</label><input type="text" id="fv-mat"></div></div>
+  <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveFoVES()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-foves')">Annuler</button></div>`);}
+async function saveFoVES(){
+  let d={nom:$('fv-nom').value,prenom:$('fv-prenom').value,ddn:$('fv-ddn').value,nat:$('fv-nat').value,roblox:$('fv-roblox').value,discord:$('fv-discord').value,marque:$('fv-marque').value,modele:$('fv-modele').value,couleur:$('fv-couleur').value,plaque:$('fv-plaque').value,dommages:$('fv-dom').value,propNom:$('fv-pnom').value,agent:$('fv-agent').value||CU.nom+' '+CU.prenom,matricule:$('fv-mat').value||CU.rio||'',serviceCreateur:'gn'};
+  if(!d.nom||!d.prenom){showToast('Nom/prénom requis',false);return;}
+  await dbAdd('foves',d);showToast('Fiche FoVES créée !');closeModal('modal-foves');renderPage('bases');
+}
+async function rechercheRapide(){
+  let nom=$('rq-nom').value.toLowerCase();
+  let prenom=$('rq-prenom').value.toLowerCase();
+  let el=$('rq-res');el.innerHTML='<div style="color:#888;font-size:12px">Recherche…</div>';
+  let results=[];
+  for(let col of['fpr','taj']){
+    let all=await dbGet(col);
+    all.forEach(x=>{
+      if((!nom||(x.nom||'').toLowerCase().includes(nom))&&(!prenom||(x.prenom||'').toLowerCase().includes(prenom)))
+        results.push({...x,_col:col});
+    });
+  }
+  if(!results.length){el.innerHTML='<div style="color:#888;font-size:12px">Aucun résultat.</div>';return;}
+  el.innerHTML=results.map(x=>`<div style="background:#f7f8fc;border-radius:7px;padding:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+    <div><strong>${x.nom} ${x.prenom}</strong> ${badge(x._col.toUpperCase(),'blue')}<br><span style="font-size:11px;color:#666">DDN: ${x.ddn||'—'} | ${x.nat||'—'} | Roblox: ${x.roblox||'—'}</span></div>
+    <button class="cbtn navy" onclick="viewFiche('${x._col}','${x.id}')">Voir fiche</button>
+  </div>`).join('');
+}
+async function viewFiche(col,id){
+  let x=await dbGetOne(col,id);if(!x)return;
+  let row=(l,v)=>`<tr><td style="padding:5px 0;color:#666;font-weight:600;width:160px">${l}</td><td>${v||'—'}</td></tr>`;
+  let html=`<table style="width:100%;font-size:12px;border-collapse:collapse">
+    ${row('Nom',x.nom)}${row('Prénom',x.prenom)}${row('DDN',x.ddn)}${row('Lieu naissance',x.lnais)}${row('Nationalité',x.nat)}`;
+  if(col==='taj')html+=row('Sexe',x.sexe)+row('Poids/Taille',(x.poids||'—')+' kg / '+(x.taille||'—')+' cm')+row('FNAEG',x.fnaeg)+(x.photo?`<tr><td>Photo</td><td><img src="${x.photo}" style="max-width:100px;border-radius:4px" onerror="this.style.display='none'"></td></tr>`:'');
+  if(col==='foves')html+=row('Marque/Modèle',(x.marque||'')+(x.modele?' '+x.modele:''))+row('Plaque',x.plaque)+row('Couleur',x.couleur)+row('Dommages',x.dommages)+row('Propriétaire',x.propNom);
+  html+=row('Pseudo Roblox',x.roblox)+row('Pseudo Discord',x.discord)+row('Raison',x.raison)+row('Agent',x.agent)+row('Matricule',x.matricule)+'</table>';
+  openModalDyn('Fiche '+col.toUpperCase()+' — '+x.nom+' '+(x.prenom||''),html+`<div style="margin-top:10px;display:flex;gap:8px"><button class="cbtn red" onclick="delFiche('${col}','${id}')">Supprimer</button><button class="cbtn red" onclick="closeModal('modal-dyn')">Fermer</button></div>`);
+}
+async function delFiche(col,id){
+  if(!confirm2('Supprimer cette fiche ?'))return;
+  await dbDelete(col,id);closeModal('modal-dyn');showToast('Fiche supprimée.');
+}
+PAGES['fpr']=async function(){
+  let all=await dbGet('fpr');
+  $('content').innerHTML=`<div class="page-title">FPR — Personnes recherchées</div>
+  <div class="page-sub">Base nationale partagée</div>
+  <div class="tw"><div class="th">Fiches FPR (${all.length}) <button class="cbtn green" onclick="openModal('modal-fpr')">+ Créer</button></div>
+  <table><thead><tr><th>Nom</th><th>Prénom</th><th>DDN</th><th>Nat.</th><th>Raison</th><th>Agent</th><th>Service</th><th>Action</th></tr></thead>
+  <tbody>${all.map(x=>`<tr><td>${x.nom||'—'}</td><td>${x.prenom||'—'}</td><td>${x.ddn||'—'}</td><td>${x.nat||'—'}</td><td>${(x.raison||'').substring(0,30)}…</td><td>${x.agent||'—'}</td><td>${badge(x.serviceCreateur||'—','gray')}</td>
+  <td><button class="cbtn navy" onclick="viewFiche('fpr','${x.id}')">Voir</button> <button class="cbtn red" onclick="delFiche('fpr','${x.id}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:#888;padding:14px">Aucune fiche</td></tr>'}
+  </tbody></table></div>${buildFPRModal()}`;
+};
+PAGES['taj']=async function(){
+  let all=await dbGet('taj');
+  $('content').innerHTML=`<div class="page-title">TAJ — Antécédents judiciaires</div>
+  <div class="page-sub">Base nationale partagée</div>
+  <div class="tw"><div class="th">Fiches TAJ (${all.length}) <button class="cbtn green" onclick="openModal('modal-taj')">+ Créer</button></div>
+  <table><thead><tr><th>Nom</th><th>Prénom</th><th>DDN</th><th>Sexe</th><th>Raison</th><th>Agent</th><th>Action</th></tr></thead>
+  <tbody>${all.map(x=>`<tr><td>${x.nom||'—'}</td><td>${x.prenom||'—'}</td><td>${x.ddn||'—'}</td><td>${x.sexe||'—'}</td><td>${(x.raison||'').substring(0,30)}…</td><td>${x.agent||'—'}</td>
+  <td><button class="cbtn navy" onclick="viewFiche('taj','${x.id}')">Voir</button> <button class="cbtn red" onclick="delFiche('taj','${x.id}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucune fiche</td></tr>'}
+  </tbody></table></div>${buildTAJModal()}`;
+};
+PAGES['foves']=async function(){
+  let all=await dbGet('foves');
+  $('content').innerHTML=`<div class="page-title">FoVES — Véhicules/Objets signalés</div>
+  <div class="page-sub">Base nationale partagée</div>
+  <div class="tw"><div class="th">Fiches FoVES (${all.length}) <button class="cbtn green" onclick="openModal('modal-foves')">+ Créer</button></div>
+  <table><thead><tr><th>Plaignant</th><th>Marque</th><th>Modèle</th><th>Plaque</th><th>Couleur</th><th>Agent</th><th>Action</th></tr></thead>
+  <tbody>${all.map(x=>`<tr><td>${x.nom||'—'} ${x.prenom||''}</td><td>${x.marque||'—'}</td><td>${x.modele||'—'}</td><td>${x.plaque||'—'}</td><td>${x.couleur||'—'}</td><td>${x.agent||'—'}</td>
+  <td><button class="cbtn navy" onclick="viewFiche('foves','${x.id}')">Voir</button> <button class="cbtn red" onclick="delFiche('foves','${x.id}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucune fiche</td></tr>'}
+  </tbody></table></div>${buildFoVESModal()}`;
+};
+
+// ---- PERSONNEL ----
+PAGES['personnel']=async function(){
+  let all=await dbGet('users',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Gestion du personnel</div>
+  <div class="page-sub">Agents de la Gendarmerie Nationale</div>
+  <div class="tw"><div class="th">👮 Agents (${all.length})</div>
+  <table><thead><tr><th>RIO/Mat.</th><th>Nom Prénom</th><th>Grade</th><th>Rôle</th><th>Aptitudes</th><th>Statut</th></tr></thead>
+  <tbody>${all.length?all.map(x=>{
+    let apts=[];if(x.aptCorg)apts.push('CORG');if(x.aptRh)apts.push('RH');if(x.formateur)apts.push('Formateur');if(x.aptOPJ)apts.push('OPJ');
+    return`<tr><td>${x.rio||x.matricule||'—'}</td><td>${x.nom||''} ${x.prenom||''}</td><td>${badge(x.grade||'—','blue')}</td><td>${badge(x.role||'—',x.role==='ADMIN'?'red':'blue')}</td><td>${apts.map(a=>badge(a,'purple')).join(' ')||'—'}</td><td>${badge('Actif','green')}</td></tr>`;
+  }).join(''):'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucun agent trouvé. Vérifiez Firebase.</td></tr>'}
+  </tbody></table></div>
+  <div class="fc"><div class="ft">📅 Demande de congés / absence</div>
+    <div class="fr-row"><div class="fr"><label>Date début</label><input type="date" id="cd-deb"></div><div class="fr"><label>Date fin</label><input type="date" id="cd-fin"></div></div>
+    <div class="fr"><label>Motif</label><select id="cd-motif"><option>Congé annuel</option><option>RTT</option><option>Maladie</option><option>Formation</option><option>Congé familial</option></select></div>
+    <div class="fr"><label>Observations</label><textarea id="cd-obs" rows="2"></textarea></div>
+    <button class="cbtn green" onclick="submitConge()">Soumettre la demande</button>
+  </div>`;
+};
+async function submitConge(){
+  let deb=$('cd-deb').value,fin=$('cd-fin').value,motif=$('cd-motif').value,obs=$('cd-obs').value;
+  if(!deb||!fin){showToast('Dates requises',false);return;}
+  await sendWebhook(MEM.webhooks.conge_gn||WH.conge_gn,{username:'NEOGN — Congés',embeds:[{title:'📅 Demande de congés',color:0x0d1b2a,fields:[
+    {name:'Agent',value:`${CU.nom} ${CU.prenom} (${CU.rio||'—'}) — GN`,inline:false},
+    {name:'Période',value:`Du ${deb} au ${fin}`,inline:true},{name:'Motif',value:motif,inline:true},{name:'Obs.',value:obs||'—'}
+  ],timestamp:new Date().toISOString()}]});
+  showToast('Demande envoyée sur Discord !');
+}
+
+// ---- GRADES ----
+PAGES['grades']=async function(){
+  $('content').innerHTML=`
+  <div class="page-title">Grades — Gendarmerie Nationale</div>
+  <div class="page-sub">Tableau officiel des grades</div>
+  <div class="grades-grid">${GRADES.map(g=>`<div class="grade-card">
+    <img class="grade-img-sm" src="${g.img}" alt="${g.code}" style="background:${g.img?'#1a1a2e':'#eee'}" onerror="this.style.display='none'">
+    <div class="grade-name-sm">${g.name}</div><div class="grade-code-sm">${g.code}</div>
+  </div>`).join('')}</div>`;
+};
+
+// ---- FORMATION ----
+PAGES['formation']=async function(){
+  let examens=await dbGet('examens',[['service','==','gn']]);
+  let modules=await dbGet('elearning',[['service','==','gn']]);
+  let canCreate=hasPerm('formateur')||CU.role==='ADMIN';
+  $('content').innerHTML=`
+  <div class="page-title">Formation</div>
+  <div class="page-sub">Modules, inscriptions, examens</div>
+  <div class="cards-grid">
+    <div class="card"><div class="card-icon">📝</div><div class="card-title">S'inscrire</div><div class="card-desc">Formations présentielles</div><button class="cbtn navy" onclick="openModal('modal-inscription')">Inscription</button></div>
+    <div class="card"><div class="card-icon">🏅</div><div class="card-title">Mes qualifications</div><div class="card-desc">Profil & qualifications validées</div><button class="cbtn navy" onclick="renderPage('qualifications')">Voir</button></div>
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">Examens internes</div><div class="card-desc">Concours et épreuves de grade</div><button class="cbtn navy" onclick="renderPage('examens')">Voir</button></div>
+  </div>
+  <div class="tw"><div class="th">📅 Prochaines formations / concours ${canCreate?`<button class="cbtn green" onclick="openModal('modal-examen')">+ Créer</button>`:''}</div>
+  <table><thead><tr><th>Formation</th><th>Type</th><th>Date</th><th>Places</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${examens.length?examens.map(x=>`<tr>
+    <td>${x.titre||'—'}</td><td>${badge(x.type||'—','blue')}</td><td>${fmtDate(x.date)}</td><td>${x.places||'∞'}</td>
+    <td>${badge(x.statut||'Ouvert',x.statut==='Complet'?'red':x.statut==='Fermé'?'gray':'green')}</td>
+    <td><button class="cbtn navy" onclick="openModal('modal-inscription')">S'inscrire</button>
+    ${canCreate?`<button class="cbtn red" onclick="delExamen('${x.id}')">Suppr.</button>`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucune formation</td></tr>'}
+  </tbody></table></div>
+  <div class="tw"><div class="th">💻 E-Learning — Modules libres ${canCreate?`<button class="cbtn green" onclick="openModal('modal-module')">+ Créer module</button>`:''}</div>
+  <div style="padding:14px">${modules.length?modules.map(m=>`<div class="module-card">
+    ${m.img?`<img class="module-img" src="${m.img}" onerror="this.style.display='none'">`:''}
+    <strong style="font-size:13px">${m.titre||'—'}</strong>
+    ${m.soustitre?`<div style="font-size:12px;color:#888;margin:2px 0">${m.soustitre}</div>`:''}
+    <p style="font-size:12px;color:#555;margin-top:5px">${m.description||'—'}</p>
+    ${canCreate?`<button class="cbtn red" style="margin-top:6px" onclick="delModule('${m.id}')">Supprimer</button>`:''}
+  </div>`).join(''):'<div style="color:#888;font-size:12px">Aucun module disponible.</div>'}
+  </div></div>
+  ${showModal('modal-inscription','📝 Inscription formation',`
+    <div class="fr"><label>Formation souhaitée</label><input type="text" id="ins-f" placeholder="Nom de la formation"></div>
+    <div class="fr"><label>Date souhaitée</label><input type="date" id="ins-d"></div>
+    <div class="fr"><label>Motivation</label><textarea id="ins-m" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="submitInscription()">Envoyer</button><button class="cbtn red" onclick="closeModal('modal-inscription')">Annuler</button></div>
+  `)}
+  ${showModal('modal-examen','📋 Créer examen / concours',`
+    <div class="fr"><label>Intitulé *</label><input type="text" id="ex-titre" placeholder="Ex: Concours SOG 2026"></div>
+    <div class="fr-row"><div class="fr"><label>Type</label><select id="ex-type"><option>Concours</option><option>Examen interne</option><option>Épreuve de grade</option><option>Spécialité</option><option>Formation</option></select></div><div class="fr"><label>Date</label><input type="date" id="ex-date"></div></div>
+    <div class="fr-row"><div class="fr"><label>Places (0=illimité)</label><input type="number" id="ex-places"></div><div class="fr"><label>Statut</label><select id="ex-statut"><option>Ouvert</option><option>Fermé</option><option>Complet</option></select></div></div>
+    <div class="fr"><label>Description</label><textarea id="ex-desc" rows="2"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveExamen()">Publier</button><button class="cbtn red" onclick="closeModal('modal-examen')">Annuler</button></div>
+  `)}
+  ${showModal('modal-module','💻 Créer module E-Learning',`
+    <div class="fr"><label>Titre *</label><input type="text" id="ml-titre"></div>
+    <div class="fr"><label>Sous-titre (optionnel)</label><input type="text" id="ml-sous"></div>
+    <div class="fr"><label>Description</label><textarea id="ml-desc" rows="3"></textarea></div>
+    <div class="fr"><label>Image (URL)</label><input type="text" id="ml-img" placeholder="https://..."></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveModule()">Publier</button><button class="cbtn red" onclick="closeModal('modal-module')">Annuler</button></div>
+  `)}`;
+};
+async function submitInscription(){
+  let f=$('ins-f').value;if(!f){showToast('Formation requise',false);return;}
+  await sendWebhook(MEM.webhooks.formation_gn||WH.formation_gn,{username:'NEOGN — Formation',embeds:[{title:'🎓 Demande d\'inscription formation',color:0x27ae60,fields:[
+    {name:'Agent',value:`${CU.nom} ${CU.prenom} (${CU.rio||'—'}) — GN`},{name:'Formation',value:f},
+    {name:'Date souhaitée',value:$('ins-d').value||'—',inline:true},{name:'Motivation',value:$('ins-m').value||'—'}
+  ],timestamp:new Date().toISOString()}]});
+  showToast('Inscription envoyée !');closeModal('modal-inscription');
+}
+async function saveExamen(){
+  let d={titre:$('ex-titre').value,type:$('ex-type').value,date:$('ex-date').value,places:$('ex-places').value,statut:$('ex-statut').value,description:$('ex-desc').value,service:'gn',createdBy:CU.nom+' '+CU.prenom};
+  if(!d.titre){showToast('Titre requis',false);return;}
+  await dbAdd('examens',d);showToast('Examen publié !');closeModal('modal-examen');renderPage('formation');
+}
+async function delExamen(id){if(!confirm2('Supprimer ?'))return;await dbDelete('examens',id);renderPage('formation');}
+async function saveModule(){
+  let d={titre:$('ml-titre').value,soustitre:$('ml-sous').value,description:$('ml-desc').value,img:$('ml-img').value,service:'gn',createdBy:CU.nom+' '+CU.prenom};
+  if(!d.titre){showToast('Titre requis',false);return;}
+  await dbAdd('elearning',d);showToast('Module publié !');closeModal('modal-module');renderPage('formation');
+}
+async function delModule(id){if(!confirm2('Supprimer ?'))return;await dbDelete('elearning',id);renderPage('formation');}
+
+// ---- QUALIFICATIONS ----
+PAGES['qualifications']=async function(){
+  $('content').innerHTML=`
+  <div class="page-title">Mes qualifications</div>
+  <div class="page-sub">Profil et qualifications validées</div>
+  <div class="profil-card">
+    <img class="profil-img" src="${CU.grade?gradeImg(CU.grade):''}" onerror="this.style.display='none'" alt="">
+    <div class="profil-info">
+      <h2>${CU.nom} ${CU.prenom}</h2>
+      <p>${CU.grade?gradeName(CU.grade):CU.role}</p>
+      <p>Service : Gendarmerie Nationale</p>
+      <div class="profil-rio" style="background:#e8ecf8;color:#0d1b2a">RIO/Mat. : ${CU.rio||CU.matricule||'—'}</div>
+    </div>
+  </div>
+  <div class="tw"><div class="th">🏅 Qualifications validées</div>
+  <table><thead><tr><th>Qualification</th><th>Validée le</th><th>Par</th><th>Validité</th></tr></thead>
+  <tbody id="qual-tb"><tr><td colspan="4" style="text-align:center;color:#888;padding:14px">Chargement…</td></tr></tbody></table></div>`;
+  let quals=await dbGet('qualifications',[['userId','==',CU.uid]]);
+  $('qual-tb').innerHTML=quals.length?quals.map(q=>`<tr><td>${q.nom||'—'}</td><td>${fmtDate(q.valideeAt)}</td><td>${q.valideeBy||'—'}</td><td>${q.validite||'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#888;padding:14px">Aucune qualification</td></tr>';
+};
+
+PAGES['examens']=async function(){
+  let examens=await dbGet('examens',[['service','==','gn']]);
+  let canCreate=hasPerm('formateur')||CU.role==='ADMIN';
+  $('content').innerHTML=`
+  <div class="page-title">Examens & concours</div>
+  <div class="page-sub">Concours SOG, spécialités, épreuves de grade</div>
+  <div class="tw"><div class="th">📋 Examens disponibles ${canCreate?`<button class="cbtn green" onclick="openModal('modal-examen')">+ Créer</button>`:''}</div>
+  <table><thead><tr><th>Intitulé</th><th>Type</th><th>Date</th><th>Places</th><th>Organisateur</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${examens.length?examens.map(x=>`<tr>
+    <td>${x.titre||'—'}</td><td>${badge(x.type,'blue')}</td><td>${fmtDate(x.date)}</td><td>${x.places||'∞'}</td><td>${x.createdBy||'—'}</td>
+    <td>${badge(x.statut||'Ouvert',x.statut==='Complet'?'red':'green')}</td>
+    <td><button class="cbtn navy" onclick="openModal('modal-inscription')">S'inscrire</button>${canCreate?`<button class="cbtn red" onclick="delExamen('${x.id}')">Suppr.</button>`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucun examen</td></tr>'}
+  </tbody></table></div>
+  ${showModal('modal-examen','📋 Créer examen',`<div class="fr"><label>Intitulé</label><input type="text" id="ex-titre"></div><div class="fr-row"><div class="fr"><label>Type</label><select id="ex-type"><option>Concours</option><option>Examen interne</option><option>Épreuve de grade</option><option>Spécialité</option></select></div><div class="fr"><label>Date</label><input type="date" id="ex-date"></div></div><div class="fr-row"><div class="fr"><label>Places</label><input type="number" id="ex-places"></div><div class="fr"><label>Statut</label><select id="ex-statut"><option>Ouvert</option><option>Fermé</option><option>Complet</option></select></div></div><div class="fr"><label>Description</label><textarea id="ex-desc" rows="2"></textarea></div><div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveExamen()">Publier</button><button class="cbtn red" onclick="closeModal('modal-examen')">Annuler</button></div>`)}
+  ${showModal('modal-inscription','📝 Inscription',`<div class="fr"><label>Formation</label><input type="text" id="ins-f"></div><div class="fr"><label>Date</label><input type="date" id="ins-d"></div><div class="fr"><label>Motivation</label><textarea id="ins-m" rows="2"></textarea></div><div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="submitInscription()">Envoyer</button><button class="cbtn red" onclick="closeModal('modal-inscription')">Annuler</button></div>`)}`;
+};
+
+// ---- RH ----
+PAGES['rh']=async function(){
+  if(!hasPerm('rh')&&CU.role!=='ADMIN'){$('content').innerHTML='<div class="al al-red">🔒 Accès réservé RH</div>';return;}
+  $('content').innerHTML=`
+  <div class="page-title">RH & Administratif</div>
+  <div class="page-sub">Avancements et dossier administratif</div>
+  <div class="cards-grid">
+    <div class="card"><div class="card-icon">⬆️</div><div class="card-title">Tableau d'avancement</div><div class="card-desc">Modalités de passage de grade</div><button class="cbtn navy" onclick="renderPage('avancement')">Voir</button></div>
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">Dossier administratif</div><div class="card-desc">Mon dossier complet</div><button class="cbtn navy" onclick="renderPage('dossier')">Consulter</button></div>
+  </div>`;
+};
+
+PAGES['avancement']=async function(){
+  let avs=await dbGet('avancement',[['service','==','gn']]);
+  avs.sort((a,b)=>(a.ordre||99)-(b.ordre||99));
+  let canEdit=hasPerm('formateur')||CU.role==='ADMIN';
+  $('content').innerHTML=`
+  <div class="page-title">Tableau d'avancement</div>
+  <div class="page-sub">Modalités et conditions de passage de grade</div>
+  ${canEdit?`<button class="cbtn green" style="margin-bottom:14px" onclick="openModal('modal-avanc')">+ Ajouter modalité</button>`:''}
+  ${avs.length?avs.map(a=>`<div class="fc">
+    <div class="ft" style="display:flex;align-items:center;justify-content:space-between">
+      <span>#${a.ordre||'—'} — Grade : ${a.grade?gradeName(a.grade):a.grade||'—'}</span>
+      ${canEdit?`<div><button class="cbtn red" onclick="delAvancement('${a.id}')">Suppr.</button></div>`:''}
+    </div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr><td style="padding:5px 0;color:#666;font-weight:600;width:180px">Ancienneté requise</td><td>${a.anciennete||'—'}</td></tr>
+      <tr><td style="padding:5px 0;color:#666;font-weight:600">Quota / postes</td><td>${a.quota||'—'}</td></tr>
+      <tr><td style="padding:5px 0;color:#666;font-weight:600;vertical-align:top">Conditions</td><td style="white-space:pre-wrap">${a.conditions||'—'}</td></tr>
+    </table>
+  </div>`).join(''):'<div class="al al-blue">Aucune modalité. Un admin doit les configurer.</div>'}
+  ${showModal('modal-avanc','⬆️ Ajouter modalité avancement',`
+    <div class="fr-row"><div class="fr"><label>Ordre (1-100)</label><input type="number" id="av-ordre" min="1" max="100"></div><div class="fr"><label>Grade</label><select id="av-grade">${GRADES.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('')}</select></div></div>
+    <div class="fr"><label>Ancienneté requise</label><input type="text" id="av-anc" placeholder="Ex: 3 ans minimum"></div>
+    <div class="fr"><label>Quota / postes ouverts</label><input type="text" id="av-quot" placeholder="Ex: 12 postes"></div>
+    <div class="fr"><label>Conditions / modalités</label><textarea id="av-cond" rows="3"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="saveAvancement()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-avanc')">Annuler</button></div>
+  `)}`;
+};
+async function saveAvancement(){
+  let d={grade:$('av-grade').value,anciennete:$('av-anc').value,conditions:$('av-cond').value,quota:$('av-quot').value,ordre:parseInt($('av-ordre').value)||99,service:'gn'};
+  await dbAdd('avancement',d);showToast('Modalité ajoutée !');closeModal('modal-avanc');renderPage('avancement');
+}
+async function delAvancement(id){if(!confirm2('Supprimer ?'))return;await dbDelete('avancement',id);renderPage('avancement');}
+
+PAGES['dossier']=async function(){
+  $('content').innerHTML=`
+  <div class="page-title">Dossier administratif</div>
+  <div class="page-sub">Votre dossier complet</div>
+  <div class="profil-card">
+    <img class="profil-img" src="${CU.grade?gradeImg(CU.grade):''}" onerror="this.style.display='none'" alt="">
+    <div class="profil-info">
+      <h2>${CU.nom} ${CU.prenom}</h2>
+      <p>${CU.grade?gradeName(CU.grade):CU.role}</p>
+      <div class="profil-rio" style="background:#e8ecf8;color:#0d1b2a">RIO : ${CU.rio||'—'}</div>
+    </div>
+  </div>
+  <div class="fc"><div class="ft">Informations</div>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    ${[['Nom',CU.nom],['Prénom',CU.prenom],['RIO/Mat.',CU.rio||CU.matricule||'—'],['Grade',CU.grade?gradeName(CU.grade):'—'],['Rôle',CU.role],['Date de naissance',CU.ddn||'—'],['École(s) / Diplômes',CU.ecoles||'—'],['Apte CORG',CU.aptCorg?'Oui':'Non'],['Apte RH',CU.aptRh?'Oui':'Non'],['Formateur',CU.formateur?'Oui':'Non'],['OPJ',CU.aptOPJ?'Oui':'Non']].map(([l,v])=>`<tr><td style="padding:5px 0;color:#666;font-weight:600;width:180px">${l}</td><td>${v}</td></tr>`).join('')}
+  </table></div>`;
+};
+
+// ---- LOGISTIQUE ----
+PAGES['logistique']=async function(){
+  let vehicules=await dbGet('vehicules',[['service','==','gn']]);
+  let armes=await dbGet('armement',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Logistique & Matériel</div>
+  <div class="page-sub">Synchronisé avec le CORG</div>
+  <div class="sr">
+    <div class="st"><div class="st-n">${vehicules.length}</div><div class="st-l">Véhicules en flotte</div></div>
+    <div class="st"><div class="st-n" style="color:#e74c3c">${vehicules.filter(x=>x.statut==='Maintenance').length}</div><div class="st-l">En maintenance</div></div>
+    <div class="st"><div class="st-n">${armes.length}</div><div class="st-l">Armes répertoriées</div></div>
+  </div>
+  <div class="tw"><div class="th">🚓 Parc véhicules</div>
+  <table><thead><tr><th>Immat.</th><th>Type</th><th>Marque</th><th>Km</th><th>Statut</th></tr></thead>
+  <tbody>${vehicules.length?vehicules.map(x=>`<tr><td>${x.immat||'—'}</td><td>${x.type||'—'}</td><td>${x.marque||'—'}</td><td>${x.km||'—'}</td><td>${badge(x.statut||'Disponible',x.statut==='Maintenance'?'red':x.statut==='Réservé'?'orange':'green')}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888;padding:14px">Aucun véhicule</td></tr>'}
+  </tbody></table></div>
+  <div class="tw"><div class="th">🔫 Armement</div>
+  <table><thead><tr><th>Référence</th><th>Type</th><th>Assigné à</th><th>État</th></tr></thead>
+  <tbody>${armes.length?armes.map(x=>`<tr><td>${x.ref||'—'}</td><td>${x.type||'—'}</td><td>${x.assigne||'—'}</td><td>${badge(x.etat||'OK',x.etat==='Hors service'?'red':'green')}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:#888;padding:14px">Aucune arme</td></tr>'}
+  </tbody></table></div>`;
+};
+
+// ---- STATISTIQUES ----
+PAGES['statistiques']=async function(){
+  let stats=MEM['stats_gn']||{};
+  try{let d=await dbGetOne('stats','gn');if(d)Object.assign(stats,d);}catch{}
+  let interv=await dbGet('interventions',[['service','==','gn']]);
+  let procs=await dbGet('procedures',[['service','==','gn']]);
+  let gavCount=interv.filter(x=>x.type==='GAV'||x.type==='Garde à vue').length;
+  $('content').innerHTML=`
+  <div class="page-title">Statistiques & Reporting</div>
+  <div class="page-sub">Activité du service — données en temps réel</div>
+  <div class="sr">
+    <div class="st"><div class="st-n" style="color:#0d1b2a">${interv.length}</div><div class="st-l">Interventions ce mois</div></div>
+    <div class="st"><div class="st-n" style="color:#e74c3c">${gavCount}</div><div class="st-l">Gardes à vue</div></div>
+    <div class="st"><div class="st-n" style="color:#27ae60">${procs.filter(x=>x.statut==='Transmis').length}</div><div class="st-l">Procédures transmises</div></div>
+  </div>
+  <div class="tw"><div class="th">📊 Activité par type d'intervention</div>
+  <table><thead><tr><th>Type</th><th>Nombre</th><th>%</th></tr></thead>
+  <tbody>${Object.entries(interv.reduce((acc,x)=>{acc[x.type||'Autre']=(acc[x.type||'Autre']||0)+1;return acc;},{})).map(([t,n])=>`<tr><td>${badge(t,'blue')}</td><td>${n}</td><td>${interv.length?Math.round(n/interv.length*100):0}%</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:#888;padding:14px">Aucune donnée</td></tr>'}
+  </tbody></table></div>`;
+};
+
+// ---- ADMIN ----
+PAGES['admin']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒 Accès administrateur requis</div>';return;}
+  let users=await dbGet('users',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Administration</div>
+  <div class="page-sub">Gestion des comptes Gendarmerie Nationale</div>
+  <div class="tw"><div class="th">👤 Comptes utilisateurs (${users.length}) <button class="cbtn green" onclick="openModal('modal-cu')">+ Créer</button></div>
+  <table><thead><tr><th>RIO</th><th>Nom Prénom</th><th>Grade</th><th>Rôle</th><th>Aptitudes</th><th>Actions</th></tr></thead>
+  <tbody>${users.length?users.map(x=>{
+    let apts=[];if(x.aptCorg)apts.push('CORG');if(x.aptRh)apts.push('RH');if(x.formateur)apts.push('Formateur');if(x.aptOPJ)apts.push('OPJ');
+    return`<tr><td>${x.rio||'—'}</td><td>${x.nom||''} ${x.prenom||''}</td><td>${badge(x.grade||'—','blue')}</td><td>${badge(x.role||'—',x.role==='ADMIN'?'red':'blue')}</td><td>${apts.map(a=>badge(a,'purple')).join(' ')||'—'}</td>
+    <td><button class="cbtn navy" onclick="openEditUser('${x.id||x.uid}')">Modifier</button> <button class="cbtn red" onclick="delUser('${x.id||x.uid}')">Suppr.</button></td></tr>`;}).join(''):'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucun utilisateur</td></tr>'}
+  </tbody></table></div>
+  ${buildCreateUserModal()}
+  ${buildEditUserModal()}`;
+};
+function buildCreateUserModal(){
+  let roleOpts=['SOG','AGENT','OFFICIER','ADMIN',...(customRoles['gn']||[]).map(r=>r.name)];
+  return showModal('modal-cu','👤 Créer un compte',`
+    <div class="fr-row"><div class="fr"><label>Identifiant *</label><input type="text" id="cu-id"></div><div class="fr"><label>Mot de passe *</label><input type="password" id="cu-pw"></div></div>
+    <div class="fr-row"><div class="fr"><label>Nom *</label><input type="text" id="cu-nom"></div><div class="fr"><label>Prénom *</label><input type="text" id="cu-prenom"></div></div>
+    <div class="fr-row"><div class="fr"><label>RIO / Matricule</label><input type="text" id="cu-rio"></div><div class="fr"><label>Date de naissance</label><input type="date" id="cu-ddn"></div></div>
+    <div class="fr-row"><div class="fr"><label>Grade</label><select id="cu-grade">${GRADES.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('')}</select></div><div class="fr"><label>Rôle</label><select id="cu-role">${roleOpts.map(r=>`<option>${r}</option>`).join('')}</select></div></div>
+    <div class="fr"><label>École(s) / Diplômes</label><input type="text" id="cu-ecoles"></div>
+    <div style="margin:10px 0 6px;font-size:12px;font-weight:700;color:#333">Aptitudes :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      ${(MEM.aptitudes['gn']||['Apte CORG','Apte RH','Formateur','OPJ']).map(a=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="cu-apt-${a.replace(/\s/g,'_')}"> ${a}</label>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="adminCreateUser()">Créer</button><button class="cbtn red" onclick="closeModal('modal-cu')">Annuler</button></div>`);
+}
+function buildEditUserModal(){
+  let roleOpts=['SOG','AGENT','OFFICIER','ADMIN',...(customRoles['gn']||[]).map(r=>r.name)];
+  return showModal('modal-eu','✏️ Modifier le compte',`
+    <input type="hidden" id="eu-uid">
+    <div class="fr-row"><div class="fr"><label>Nom</label><input type="text" id="eu-nom"></div><div class="fr"><label>Prénom</label><input type="text" id="eu-prenom"></div></div>
+    <div class="fr-row"><div class="fr"><label>RIO</label><input type="text" id="eu-rio"></div><div class="fr"><label>Nouveau mot de passe</label><input type="password" id="eu-pw" placeholder="Vide = inchangé"></div></div>
+    <div class="fr-row"><div class="fr"><label>DDN</label><input type="date" id="eu-ddn"></div><div class="fr"><label>Écoles / Diplômes</label><input type="text" id="eu-ecoles"></div></div>
+    <div class="fr-row"><div class="fr"><label>Grade</label><select id="eu-grade">${GRADES.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('')}</select></div><div class="fr"><label>Rôle</label><select id="eu-role">${roleOpts.map(r=>`<option>${r}</option>`).join('')}</select></div></div>
+    <div style="margin:10px 0 6px;font-size:12px;font-weight:700;color:#333">Aptitudes :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-corg"> Apte CORG</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-rh"> Apte RH</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-form"> Formateur</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-opj"> OPJ</label>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="adminSaveUser()">Enregistrer</button><button class="cbtn red" onclick="closeModal('modal-eu')">Annuler</button></div>`);
+}
+async function adminCreateUser(){
+  let id=$('cu-id').value.trim();let pw=$('cu-pw').value;
+  if(!id||!pw||!$('cu-nom').value){showToast('Champs obligatoires manquants',false);return;}
+  let apts={};
+  (MEM.aptitudes['gn']||['Apte CORG','Apte RH','Formateur','OPJ']).forEach(a=>{
+    let el=$(`cu-apt-${a.replace(/\s/g,'_')}`);if(el)apts[a]=el.checked;
+  });
+  let data={identifiant:id,password:pw,nom:$('cu-nom').value,prenom:$('cu-prenom').value,rio:$('cu-rio').value,ddn:$('cu-ddn').value,ecoles:$('cu-ecoles').value,grade:$('cu-grade').value,role:$('cu-role').value,service:'gn',
+    aptCorg:apts['Apte CORG']||false,aptRh:apts['Apte RH']||false,formateur:apts['Formateur']||false,aptOPJ:apts['OPJ']||false};
+  await dbSet('users',id,data);DEMO_USERS[id]=data;
+  showToast('Compte créé !');closeModal('modal-cu');renderPage('admin');
+}
+async function openEditUser(uid){
+  let x=await dbGetOne('users',uid);if(!x){x=DEMO_USERS[uid];}if(!x)return;
+  $('eu-uid').value=uid;$('eu-nom').value=x.nom||'';$('eu-prenom').value=x.prenom||'';
+  $('eu-rio').value=x.rio||'';$('eu-ddn').value=x.ddn||'';$('eu-ecoles').value=x.ecoles||'';
+  $('eu-grade').value=x.grade||'';$('eu-role').value=x.role||'SOG';
+  $('eu-corg').checked=x.aptCorg||false;$('eu-rh').checked=x.aptRh||false;
+  $('eu-form').checked=x.formateur||false;$('eu-opj').checked=x.aptOPJ||false;
+  $('eu-pw').value='';openModal('modal-eu');
+}
+async function adminSaveUser(){
+  let uid=$('eu-uid').value;
+  let up={nom:$('eu-nom').value,prenom:$('eu-prenom').value,rio:$('eu-rio').value,ddn:$('eu-ddn').value,ecoles:$('eu-ecoles').value,grade:$('eu-grade').value,role:$('eu-role').value,aptCorg:$('eu-corg').checked,aptRh:$('eu-rh').checked,formateur:$('eu-form').checked,aptOPJ:$('eu-opj').checked};
+  let pw=$('eu-pw').value;if(pw)up.password=pw;
+  await dbUpdate('users',uid,up);if(DEMO_USERS[uid])Object.assign(DEMO_USERS[uid],up);
+  showToast('Compte modifié !');closeModal('modal-eu');renderPage('admin');
+}
+async function delUser(uid){
+  if(!confirm2('Supprimer ce compte ?'))return;
+  await dbDelete('users',uid);delete DEMO_USERS[uid];
+  showToast('Compte supprimé.');renderPage('admin');
+}
+
+// ---- ADMIN GRADES ----
+PAGES['admin-grades']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒 Accès requis</div>';return;}
+  $('content').innerHTML=`
+  <div class="page-title">Gestion des grades</div>
+  <div class="page-sub">Ajouter, modifier, supprimer</div>
+  <div class="fc"><div class="ft">➕ Ajouter un grade</div>
+    <div class="fr-row"><div class="fr"><label>Code</label><input type="text" id="ga-code" placeholder="Ex: MDC"></div><div class="fr"><label>Nom complet</label><input type="text" id="ga-name"></div></div>
+    <div class="fr-row"><div class="fr"><label>Image (chemin ou URL)</label><input type="text" id="ga-img" placeholder="grades/MDC.png"></div><div class="fr"><label>Ordre (1-100)</label><input type="number" id="ga-order"></div></div>
+    <button class="cbtn green" onclick="adminAddGrade()">Ajouter</button>
+  </div>
+  <div class="tw"><div class="th">🎖️ Grades (${GRADES.length})</div>
+  <table><thead><tr><th>Aperçu</th><th>Code</th><th>Nom</th><th>Ordre</th><th>Action</th></tr></thead>
+  <tbody>${GRADES.map(g=>`<tr>
+    <td><img src="${g.img}" style="width:32px;height:32px;object-fit:contain;background:#1a1a2e;border-radius:4px;padding:2px" onerror="this.style.display='none'"></td>
+    <td>${badge(g.code,'blue')}</td><td>${g.name}</td><td>${g.order||'—'}</td>
+    <td><button class="cbtn red" onclick="adminDelGrade('${g.code}')">Suppr.</button></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+};
+async function adminAddGrade(){
+  let code=$('ga-code').value.trim().toUpperCase();let name=$('ga-name').value.trim();let img=$('ga-img').value.trim();let order=parseInt($('ga-order').value)||99;
+  if(!code||!name){showToast('Code et nom requis',false);return;}
+  let g={code,name,img,order,service:'gn'};
+  await dbSet('grades',code+'-gn',g);
+  GRADES=GRADES.filter(x=>x.code!==code);GRADES.push(g);GRADES.sort((a,b)=>a.order-b.order);
+  showToast('Grade ajouté !');renderPage('admin-grades');
+}
+async function adminDelGrade(code){
+  if(!confirm2('Supprimer le grade '+code+' ?'))return;
+  await dbDelete('grades',code+'-gn');GRADES=GRADES.filter(g=>g.code!==code);
+  showToast('Grade supprimé.');renderPage('admin-grades');
+}
+
+// ---- ADMIN ROLES ----
+PAGES['admin-roles']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒 Accès requis</div>';return;}
+  let roles=customRoles['gn']||[];
+  const PERMS=['corg','rh','formateur','opj','agenda','voir_stats','voir_logistique','voir_bases'];
+  $('content').innerHTML=`
+  <div class="page-title">Rôles & Permissions</div>
+  <div class="page-sub">Création de rôles personnalisés avec permissions</div>
+  <div class="fc"><div class="ft">➕ Créer un rôle</div>
+    <div class="fr-row"><div class="fr"><label>Nom du rôle *</label><input type="text" id="rl-name" placeholder="Ex: Officier de permanence"></div></div>
+    <div style="margin:10px 0 6px;font-size:12px;font-weight:700;color:#333">Permissions :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      ${PERMS.map(p=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="rl-p-${p}"> ${p}</label>`).join('')}
+    </div>
+    <button class="cbtn green" onclick="saveRole()">Créer le rôle</button>
+  </div>
+  <div class="tw"><div class="th">🎭 Rôles personnalisés (${roles.length})</div>
+  <table><thead><tr><th>Nom</th><th>Permissions</th><th>Action</th></tr></thead>
+  <tbody>${roles.length?roles.map(r=>`<tr>
+    <td><strong>${r.name}</strong></td>
+    <td>${(r.perms||[]).map(p=>`<span class="perm-tag">${p}</span>`).join(' ')||'—'}</td>
+    <td><button class="cbtn red" onclick="delRole('${r.name}')">Suppr.</button></td>
+  </tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#888;padding:14px">Aucun rôle personnalisé</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveRole(){
+  let name=$('rl-name').value.trim();if(!name){showToast('Nom requis',false);return;}
+  const PERMS=['corg','rh','formateur','opj','agenda','voir_stats','voir_logistique','voir_bases'];
+  let perms=PERMS.filter(p=>$('rl-p-'+p)&&$('rl-p-'+p).checked);
+  let r={name,perms,service:'gn'};
+  if(!customRoles['gn'])customRoles['gn']=[];
+  customRoles['gn']=customRoles['gn'].filter(x=>x.name!==name);
+  customRoles['gn'].push(r);
+  await dbSet('roles',name+'-gn',r);
+  showToast('Rôle créé !');renderPage('admin-roles');
+}
+async function delRole(name){
+  if(!confirm2('Supprimer le rôle '+name+' ?'))return;
+  customRoles['gn']=(customRoles['gn']||[]).filter(r=>r.name!==name);
+  await dbDelete('roles',name+'-gn');renderPage('admin-roles');
+}
+
+// ---- ADMIN VEHICULES ----
+PAGES['admin-vehicules']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒</div>';return;}
+  let vehs=await dbGet('vehicules',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Parc véhicules</div>
+  <div class="page-sub">Gestion du parc automobile — synchronisé avec le CORG</div>
+  <div class="fc"><div class="ft">➕ Ajouter un véhicule</div>
+    <div class="fr-row"><div class="fr"><label>Immatriculation *</label><input type="text" id="vh-immat"></div><div class="fr"><label>Marque</label><input type="text" id="vh-marque"></div></div>
+    <div class="fr-row"><div class="fr"><label>Modèle</label><input type="text" id="vh-modele"></div><div class="fr"><label>Type</label><select id="vh-type"><option>Berline</option><option>SUV</option><option>Moto</option><option>Fourgon</option><option>4x4</option></select></div></div>
+    <div class="fr-row"><div class="fr"><label>Kilométrage</label><input type="number" id="vh-km"></div><div class="fr"><label>Statut</label><select id="vh-statut"><option>Disponible</option><option>Réservé</option><option>Maintenance</option></select></div></div>
+    <button class="cbtn green" onclick="saveVehicule()">Ajouter</button>
+  </div>
+  <div class="tw"><div class="th">🚓 Parc (${vehs.length})</div>
+  <table><thead><tr><th>Immat.</th><th>Marque</th><th>Modèle</th><th>Type</th><th>Km</th><th>Statut</th><th>Action</th></tr></thead>
+  <tbody>${vehs.length?vehs.map(x=>`<tr><td>${x.immat||'—'}</td><td>${x.marque||'—'}</td><td>${x.modele||'—'}</td><td>${x.type||'—'}</td><td>${x.km||'—'}</td><td>${badge(x.statut||'Disponible',x.statut==='Maintenance'?'red':x.statut==='Réservé'?'orange':'green')}</td><td><button class="cbtn red" onclick="delVehicule('${x.id}')">Suppr.</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#888;padding:14px">Aucun véhicule</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveVehicule(){
+  let d={immat:$('vh-immat').value,marque:$('vh-marque').value,modele:$('vh-modele').value,type:$('vh-type').value,km:$('vh-km').value,statut:$('vh-statut').value,service:'gn'};
+  if(!d.immat){showToast('Immatriculation requise',false);return;}
+  await dbAdd('vehicules',d);showToast('Véhicule ajouté !');renderPage('admin-vehicules');
+}
+async function delVehicule(id){if(!confirm2('Supprimer ?'))return;await dbDelete('vehicules',id);renderPage('admin-vehicules');}
+
+// ---- ADMIN ARMES ----
+PAGES['admin-armes']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒</div>';return;}
+  let armes=await dbGet('armement',[['service','==','gn']]);
+  $('content').innerHTML=`
+  <div class="page-title">Armement</div>
+  <div class="page-sub">Suivi et attribution des armes</div>
+  <div class="fc"><div class="ft">➕ Ajouter une arme</div>
+    <div class="fr-row"><div class="fr"><label>Référence *</label><input type="text" id="ar-ref"></div><div class="fr"><label>Type</label><input type="text" id="ar-type" placeholder="HK USP, SIG SP 2022..."></div></div>
+    <div class="fr-row"><div class="fr"><label>Assigné à</label><input type="text" id="ar-assigne"></div><div class="fr"><label>État</label><select id="ar-etat"><option>OK</option><option>Hors service</option><option>En maintenance</option></select></div></div>
+    <button class="cbtn green" onclick="saveArme()">Ajouter</button>
+  </div>
+  <div class="tw"><div class="th">🔫 Armement (${armes.length})</div>
+  <table><thead><tr><th>Référence</th><th>Type</th><th>Assigné</th><th>État</th><th>Action</th></tr></thead>
+  <tbody>${armes.length?armes.map(x=>`<tr><td>${x.ref||'—'}</td><td>${x.type||'—'}</td><td>${x.assigne||'—'}</td><td>${badge(x.etat||'OK',x.etat==='Hors service'?'red':'green')}</td><td><button class="cbtn red" onclick="delArme('${x.id}')">Suppr.</button></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#888;padding:14px">Aucune arme</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveArme(){
+  let d={ref:$('ar-ref').value,type:$('ar-type').value,assigne:$('ar-assigne').value,etat:$('ar-etat').value,service:'gn'};
+  if(!d.ref){showToast('Référence requise',false);return;}
+  await dbAdd('armement',d);showToast('Arme ajoutée !');renderPage('admin-armes');
+}
+async function delArme(id){if(!confirm2('Supprimer ?'))return;await dbDelete('armement',id);renderPage('admin-armes');}
+
+// ---- ADMIN APTITUDES ----
+PAGES['admin-aptitudes']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒</div>';return;}
+  let apts=MEM.aptitudes['gn']||[];
+  $('content').innerHTML=`
+  <div class="page-title">Gestion des aptitudes</div>
+  <div class="page-sub">Définir les aptitudes disponibles pour la GN</div>
+  <div class="fc"><div class="ft">➕ Ajouter une aptitude</div>
+    <div class="fr"><label>Nom de l'aptitude *</label><input type="text" id="apt-nom" placeholder="Ex: Tireur d'élite"></div>
+    <button class="cbtn green" onclick="saveAptitude()">Ajouter</button>
+  </div>
+  <div class="tw"><div class="th">🏅 Aptitudes (${apts.length})</div>
+  <table><thead><tr><th>Nom</th><th>Action</th></tr></thead>
+  <tbody>${apts.map(a=>`<tr><td>${badge(a,'purple')}</td><td><button class="cbtn red" onclick="delAptitude('${a}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:#888;padding:14px">Aucune aptitude</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveAptitude(){
+  let nom=$('apt-nom').value.trim();if(!nom)return;
+  if(!MEM.aptitudes['gn'])MEM.aptitudes['gn']=[];
+  if(!MEM.aptitudes['gn'].includes(nom))MEM.aptitudes['gn'].push(nom);
+  await dbSet('aptitudes','gn',{list:MEM.aptitudes['gn']});
+  showToast('Aptitude ajoutée !');renderPage('admin-aptitudes');
+}
+async function delAptitude(nom){
+  MEM.aptitudes['gn']=(MEM.aptitudes['gn']||[]).filter(a=>a!==nom);
+  await dbSet('aptitudes','gn',{list:MEM.aptitudes['gn']});renderPage('admin-aptitudes');
+}
+
+// ---- ADMIN TYPES INTERVENTION ----
+PAGES['admin-types']=async function(){
+  if(CU.role!=='ADMIN'&&CU.role!=='FONDATEUR'){$('content').innerHTML='<div class="al al-red">🔒</div>';return;}
+  let types=(MEM.typeInterventions||{})['gn']||[];
+  $('content').innerHTML=`
+  <div class="page-title">Types d'intervention</div>
+  <div class="page-sub">Personnaliser les types disponibles dans le CORG</div>
+  <div class="fc"><div class="ft">➕ Ajouter un type</div>
+    <div class="fr"><label>Nom du type *</label><input type="text" id="ti-nom" placeholder="Ex: GAV, Contrôle, Escorte..."></div>
+    <button class="cbtn green" onclick="saveTypeInt()">Ajouter</button>
+  </div>
+  <div class="tw"><div class="th">Types (${types.length})</div>
+  <table><thead><tr><th>Type</th><th>Action</th></tr></thead>
+  <tbody>${types.map(t=>`<tr><td>${badge(t,'orange')}</td><td><button class="cbtn red" onclick="delTypeInt('${t}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:#888;padding:14px">Aucun type</td></tr>'}
+  </tbody></table></div>`;
+};
+async function saveTypeInt(){
+  let nom=$('ti-nom').value.trim();if(!nom)return;
+  if(!MEM.typeInterventions)MEM.typeInterventions={};
+  if(!MEM.typeInterventions['gn'])MEM.typeInterventions['gn']=[];
+  if(!MEM.typeInterventions['gn'].includes(nom))MEM.typeInterventions['gn'].push(nom);
+  await dbSet('config','typeInterventions',MEM.typeInterventions);
+  showToast('Type ajouté !');renderPage('admin-types');
+}
+async function delTypeInt(nom){
+  if(!MEM.typeInterventions)return;
+  MEM.typeInterventions['gn']=(MEM.typeInterventions['gn']||[]).filter(t=>t!==nom);
+  await dbSet('config','typeInterventions',MEM.typeInterventions);renderPage('admin-types');
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function showModal(id,title,body){
+  return`<div id="${id}" class="mo" style="display:none" onclick="if(event.target===this)closeModal('${id}')">
+    <div class="mb"><div class="mt">${title}<button class="mc" onclick="closeModal('${id}')">✕</button></div>${body}</div>
+  </div>`;}
+function openModal(id){let el=$(id);if(el)el.style.display='flex';}
+function closeModal(id){let el=$(id);if(el)el.style.display='none';}
+function openModalDyn(title,body){
+  let m=$('modal-dyn');
+  if(!m){m=document.createElement('div');m.id='modal-dyn';m.className='mo';m.onclick=function(e){if(e.target===m)closeModal('modal-dyn');};document.body.appendChild(m);}
+  m.innerHTML=`<div class="mb"><div class="mt">${title}<button class="mc" onclick="closeModal('modal-dyn')">✕</button></div>${body}</div>`;
+  m.style.display='flex';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload=async function(){
+  try{
+    let cfg=await dbGetOne('config','webhooks');if(cfg){Object.assign(MEM.webhooks,cfg);}
+    let ti=await dbGetOne('config','typeInterventions');if(ti)MEM.typeInterventions=ti;
+    let apts=await dbGetOne('aptitudes','gn');if(apts&&apts.list)MEM.aptitudes['gn']=apts.list;
+    let roles=await dbGet('roles',[['service','==','gn']]);
+    roles.forEach(r=>{if(!customRoles['gn'])customRoles['gn']=[];customRoles['gn'].push(r);});
+  }catch(e){console.warn('Init Firebase:',e);}
+  $('lpw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+};
+</script>
+</body>
+</html>

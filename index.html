@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Portail FDO — Connexion Inter-Services</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+html,body{height:100%;background:#0a0e1a;overflow:hidden}
+
+/* Fallback texte si image KO */
+.card-img-fallback{
+  display:none;width:100%;height:100%;
+  align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+  border-radius:50%;background:rgba(255,255,255,.15);
+}
+
+/* ===== FOND ANIMÉ ===== */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(26,35,126,.18) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 20%,rgba(13,27,42,.22) 0%,transparent 60%);
+  pointer-events:none;z-index:0;
+}
+
+/* ===== PORTAIL ===== */
+#portal{
+  position:relative;z-index:1;
+  height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;
+}
+
+/* Header */
+.portal-header{text-align:center;margin-bottom:48px}
+.portal-logo{font-size:36px;margin-bottom:10px}
+.portal-title{
+  color:#fff;font-size:26px;font-weight:700;
+  letter-spacing:3px;text-transform:uppercase;
+  margin-bottom:10px;
+}
+.portal-sub{
+  color:#8899aa;font-size:12px;letter-spacing:.5px;
+  max-width:520px;line-height:1.6;
+}
+.portal-divider{
+  width:60px;height:2px;background:linear-gradient(90deg,transparent,#4a7fc1,transparent);
+  margin:14px auto 0;border-radius:2px;
+}
+
+/* Cards */
+.portal-cards{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;margin-bottom:36px}
+
+.portal-card{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;padding:36px 32px 28px;
+  width:210px;text-align:center;
+  cursor:pointer;transition:all .25s ease;
+  position:relative;overflow:hidden;
+}
+.portal-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 60%);
+  pointer-events:none;
+}
+.portal-card:hover{
+  transform:translateY(-6px);
+  border-color:rgba(255,255,255,.22);
+  background:rgba(255,255,255,.07);
+  box-shadow:0 16px 48px rgba(0,0,0,.4);
+}
+.portal-card.gn:hover{border-color:#2e4a7a;box-shadow:0 16px 48px rgba(13,27,42,.6);}
+.portal-card.pn:hover{border-color:#1a237e;box-shadow:0 16px 48px rgba(26,35,126,.5);}
+
+.portal-card-icon{
+  width:72px;height:72px;
+  border-radius:50%;overflow:hidden;
+  margin:0 auto 18px;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.06);
+  font-size:36px;
+}
+.portal-card-icon img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+.portal-card-title{
+  color:#fff;font-size:15px;font-weight:700;
+  margin-bottom:5px;line-height:1.3;
+}
+.portal-card-sub{color:#7788aa;font-size:11px;letter-spacing:.3px}
+
+.portal-card-arrow{
+  margin-top:18px;
+  color:rgba(255,255,255,.3);font-size:18px;
+  transition:all .2s;display:block;
+}
+.portal-card:hover .portal-card-arrow{color:rgba(255,255,255,.8);transform:translateX(4px);}
+
+/* Badge service */
+.portal-card-badge{
+  position:absolute;top:12px;right:12px;
+  font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;letter-spacing:.5px;
+}
+.portal-card-badge.gn{background:rgba(13,27,42,.7);color:#7bafd4;border:1px solid rgba(123,175,212,.2)}
+.portal-card-badge.pn{background:rgba(26,35,126,.7);color:#99aaff;border:1px solid rgba(153,170,255,.2)}
+
+/* Accès Admin */
+.portal-admin-link{
+  color:rgba(255,255,255,.25);font-size:11px;
+  cursor:pointer;letter-spacing:.5px;
+  display:flex;align-items:center;gap:6px;
+  transition:color .2s;padding:8px 16px;border-radius:6px;
+}
+.portal-admin-link:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.05)}
+
+/* Disclaimer */
+.portal-disclaimer{
+  position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.18);font-size:10px;letter-spacing:.4px;
+  white-space:nowrap;
+}
+
+/* ===== LOGIN OVERLAY ===== */
+#login-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
+}
+#login-overlay.open{display:flex}
+
+.lbox{
+  background:#fff;border-radius:16px;
+  padding:40px 38px;width:100%;max-width:400px;
+  box-shadow:0 24px 64px rgba(0,0,0,.6);
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.llogo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px}
+.llogo-icon{
+  width:50px;height:50px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+}
+.llogo-text{font-size:15px;font-weight:700;line-height:1.25;color:#111}
+.llogo-text span{font-size:11px;font-weight:400;color:#999;display:block}
+.ltitle{text-align:center;font-size:17px;font-weight:700;margin-bottom:5px}
+.lhr{border:none;border-top:1px solid #f0f0f0;margin:14px 0 18px}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:12px;color:#555;font-weight:600;margin-bottom:4px}
+.fg input{
+  width:100%;border:1.5px solid #e5e5e5;
+  border-radius:8px;padding:9px 12px;font-size:13px;
+  outline:none;background:#fafafa;color:#222;transition:border .15s;
+}
+.fg input:focus{background:#fff}
+.lerr{color:#c0392b;font-size:12px;margin-top:6px;text-align:center;display:none}
+.btn-login{
+  width:100%;color:#fff;border:none;border-radius:8px;
+  padding:11px;font-size:14px;font-weight:700;cursor:pointer;
+  margin-top:6px;transition:opacity .15s;
+}
+.btn-login:hover{opacity:.88}
+.lback{
+  color:#aaa;font-size:12px;cursor:pointer;
+  text-align:center;display:block;margin-top:14px;
+  transition:color .15s;
+}
+.lback:hover{color:#555}
+.lsep{text-align:center;font-size:11px;color:#ccc;margin:4px 0}
+
+/* ===== ADMIN PANEL ===== */
+#admin-panel{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+  display:none;align-items:flex-start;justify-content:center;
+  padding:30px 20px;overflow-y:auto;
+}
+#admin-panel.open{display:flex}
+.apanel{
+  background:#fff;border-radius:16px;
+  width:100%;max-width:900px;overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.6);
+  animation:slideUp .25s ease;
+}
+.apanel-top{
+  background:#0a0e1a;padding:18px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.apanel-top-title{color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px}
+.apanel-close{
+  background:rgba(255,255,255,.1);color:#fff;border:none;
+  border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;
+}
+.apanel-close:hover{background:rgba(255,255,255,.2)}
+.apanel-body{padding:24px}
+
+/* Tabs */
+.atabs{display:flex;gap:4px;margin-bottom:20px;background:#f5f5f5;border-radius:10px;padding:4px}
+.atab{
+  flex:1;text-align:center;padding:8px;font-size:12px;
+  font-weight:600;cursor:pointer;border-radius:7px;color:#666;transition:all .15s;
+}
+.atab.active{background:#fff;color:#0a0e1a;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+/* Admin cards grid */
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.acard{
+  background:#f8f9fc;border:1px solid #e8ecf0;
+  border-radius:10px;padding:14px;
+}
+.acard-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.acard-sub{font-size:11px;color:#888;margin-bottom:10px}
+
+/* Table */
+.atw{background:#fff;border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.ath{padding:12px 16px;font-size:13px;font-weight:700;border-bottom:1px solid #eee;background:#fafafa;display:flex;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse}
+th{background:#f5f7fa;padding:8px 12px;font-size:11px;font-weight:700;color:#666;text-align:left;border-bottom:1px solid #eee}
+td{padding:9px 12px;font-size:12px;border-bottom:.5px solid #f5f5f5}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafcff}
+
+/* Form */
+.afr{margin-bottom:10px}
+.afr label{display:block;font-size:11px;font-weight:700;color:#555;margin-bottom:3px}
+.afr input,.afr select{width:100%;border:1.5px solid #e0e0e0;border-radius:6px;padding:7px 10px;font-size:12px;outline:none;background:#fff}
+.afr input:focus,.afr select:focus{border-color:#0a0e1a}
+.afr-row{display:flex;gap:8px}.afr-row .afr{flex:1}
+
+/* Btns */
+.btn{border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;color:#fff;display:inline-block}
+.btn:hover{opacity:.85}
+.btn-sm-navy{background:#0a0e1a}.btn-sm-green{background:#27ae60}
+.btn-sm-red{background:#c0392b}.btn-sm-blue{background:#2980b9}
+
+/* Badges */
+.b{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.b-blue{background:#e8ecf8;color:#1a2e5a}.b-green{background:#e6f4ea;color:#1a6b2a}
+.b-red{background:#fde8e8;color:#7b1818}.b-gray{background:#f0f0f0;color:#555}
+.b-purple{background:#f0e8ff;color:#5a1a8a}.b-orange{background:#fff3e0;color:#8a4a00}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:20px;right:20px;
+  padding:11px 18px;border-radius:8px;
+  font-size:13px;font-weight:600;z-index:9999;
+  display:none;color:#fff;
+}
+
+/* Stats row */
+.asr{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.ast{background:#f8f9fc;border:1px solid #eee;border-radius:10px;padding:12px;text-align:center}
+.ast-n{font-size:24px;font-weight:700;color:#0a0e1a}
+.ast-l{font-size:11px;color:#999;margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- ===== PORTAIL PRINCIPAL ===== -->
+<div id="portal">
+  <div class="portal-header">
+    <div class="portal-logo">🛡️</div>
+    <div class="portal-title">Plateforme Connexion FDO</div>
+    <div class="portal-sub">
+      PLATEFORME FICTIVE — AUCUNE VALEUR RÉELLE | Document utilisé uniquement à des fins de simulation — Choisissez votre service
+    </div>
+    <div class="portal-divider"></div>
+  </div>
+
+  <div class="portal-cards">
+
+    <!-- GENDARMERIE -->
+    <div class="portal-card gn" onclick="openLogin('gn')">
+      <span class="portal-card-badge gn">GN</span>
+      <div class="portal-card-icon">
+        <!-- 🖼️ IMAGE GN : remplacez l'URL src par votre lien goopics -->
+        <img id="img-gn" src="https://i.goopics.net/ajatcq.png"
+             onerror="this.src='';this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <span class="card-img-fallback" style="display:none">GN</span>
+      </div>
+      <div class="portal-card-title" id="title-gn">Gendarmerie<br>Nationale</div>
+      <div class="portal-card-sub" id="sub-gn">Intranet GN</div>
+      <span class="portal-card-arrow">→</span>
+    </div>
+
+    <!-- POLICE NATIONALE -->
+    <div class="portal-card pn" onclick="openLogin('pn')">
+      <span class="portal-card-badge pn">PN</span>
+      <div class="portal-card-icon">
+        <!-- 🖼️ IMAGE PN : remplacez l'URL src par votre lien goopics -->
+        <img id="img-pn" src="https://i.goopics.net/0tcu3y.png"
+             onerror="this.src='';this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <span class="card-img-fallback" style="display:none">PN</span>
+      </div>
+      <div class="portal-card-title" id="title-pn">Police<br>Nationale</div>
+      <div class="portal-card-sub" id="sub-pn">Intranet PN</div>
+      <span class="portal-card-arrow">→</span>
+    </div>
+
+  </div>
+
+  <!-- Accès Admin fondateur -->
+  <div class="portal-admin-link" onclick="openAdminLogin()">
+    🔐 &nbsp;Accès Administration
+  </div>
+</div>
+
+<div class="portal-disclaimer">PLATEFORME FICTIVE — AUCUNE VALEUR RÉELLE</div>
+
+<!-- ===== LOGIN OVERLAY ===== -->
+<div id="login-overlay">
+  <div class="lbox">
+    <div class="llogo">
+      <div class="llogo-icon" id="l-icon" style="background:#0d1b2a;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
+        <img id="l-icon-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:none">
+        <span id="l-icon-fallback"></span>
+      </div>
+      <div class="llogo-text">
+        <span id="l-service-name">Gendarmerie Nationale</span>
+        <span id="l-service-sub">Intranet sécurisé — DGGN</span>
+      </div>
+    </div>
+    <div class="ltitle" id="l-title" style="color:#0d1b2a">Connexion</div>
+    <hr class="lhr">
+    <div class="fg">
+      <label>Identifiant :</label>
+      <input type="text" id="lid" placeholder="Matricule / identifiant" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>Mot de passe :</label>
+      <input type="password" id="lpw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="lerr" id="lerr">Identifiant ou mot de passe incorrect.</div>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Se connecter</button>
+    <div class="lsep">Les données sont vérifiées via Firebase</div>
+    <span class="lback" onclick="closeLogin()">← Retour au portail</span>
+  </div>
+</div>
+
+<!-- ===== ADMIN PANEL ===== -->
+<div id="admin-panel">
+  <div class="apanel">
+    <div class="apanel-top">
+      <div class="apanel-top-title">🔐 Panel Administration — Supervision globale FDO</div>
+      <button class="apanel-close" onclick="closeAdmin()">✕ Fermer</button>
+    </div>
+    <div class="apanel-body" id="admin-body">
+      <!-- Login fondateur -->
+      <div id="admin-login-section">
+        <div style="max-width:360px;margin:0 auto;padding:20px 0">
+          <div style="text-align:center;font-size:28px;margin-bottom:12px">🔐</div>
+          <div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:4px">Accès Fondateur</div>
+          <div style="text-align:center;font-size:12px;color:#888;margin-bottom:20px">Supervision globale — GN & PN</div>
+          <div class="afr"><label>Identifiant</label><input type="text" id="a-id" placeholder="Identifiant fondateur"></div>
+          <div class="afr"><label>Mot de passe</label><input type="password" id="a-pw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+          <div class="lerr" id="a-err" style="display:none;margin-bottom:8px">Identifiant ou mot de passe incorrect.</div>
+          <button class="btn btn-sm-navy" style="width:100%;padding:10px;font-size:13px;margin-top:4px" onclick="doAdminLogin()">Se connecter</button>
+        </div>
+      </div>
+      <!-- Dashboard fondateur (caché jusqu'à connexion) -->
+      <div id="admin-dashboard" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// FIREBASE
+// ============================================================
+const FB = {
+  apiKey:"AIzaSyA0tL5MXK_YWC1tJ4vIPkrsWmKubJvBJnA",
+  authDomain:"database-fdo-14a99.firebaseapp.com",
+  projectId:"database-fdo-14a99",
+  storageBucket:"database-fdo-14a99.firebasestorage.app",
+  messagingSenderId:"486592511979",
+  appId:"1:486592511979:web:80dc08e6a1ebd33f3b23ae"
+};
+let db=null;
+try{firebase.initializeApp(FB);db=firebase.firestore();}catch(e){}
+
+// ============================================================
+// CONFIG
+// ============================================================
+const SERVICES = {
+  gn:{
+    label:'Gendarmerie Nationale',
+    sub:'Intranet sécurisé — DGGN',
+    // 🖼️ IMAGE GN : remplacez cette URL par votre lien goopics perso
+    img:'https://i.goopics.net/ajatcq.png',
+    fallback:'GN',
+    color:'#0d1b2a',
+    file:'NEOGN_Gendarmerie.html',
+    demoUsers:{
+      admin_gn:{pw:'AdminGN2026',role:'ADMIN',service:'gn'},
+      gendarme: {pw:'Gn1234',   role:'SOG',   service:'gn'},
+    }
+  },
+  pn:{
+    label:'Police Nationale',
+    sub:'Intranet sécurisé — DIPN',
+    // 🖼️ IMAGE PN : remplacez cette URL par votre lien goopics perso
+    img:'https://i.goopics.net/0tcu3y.png',
+    fallback:'PN',
+    color:'#1a237e',
+    file:'NEOPN_Police.html',
+    demoUsers:{
+      admin_pn:{pw:'AdminPN2026',role:'ADMIN',service:'pn'},
+      agent_pn: {pw:'Pn1234',    role:'AGENT', service:'pn'},
+    }
+  }
+};
+const FONDATEUR = {id:'fondateur', pw:'Fondateur2026!'};
+
+let MEM = {users:[]};
+let currentService = null;
+let adminLogged = false;
+
+// ============================================================
+// UTILS
+// ============================================================
+function $(id){return document.getElementById(id)}
+function showToast(msg,ok=true){
+  let t=$('toast');t.textContent=msg;
+  t.style.background=ok?'#27ae60':'#c0392b';
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',3200);
+}
+function badge(txt,type){return`<span class="b b-${type}">${txt||'—'}</span>`}
+function fmtDate(v){if(!v)return'—';try{let d=v.toDate?v.toDate():new Date(v);return d.toLocaleDateString('fr-FR');}catch{return v;}}
+
+// ============================================================
+// DB HELPERS
+// ============================================================
+async function dbGet(col,filters=[]){
+  try{
+    let q=db.collection(col);
+    filters.forEach(([f,op,v])=>q=q.where(f,op,v));
+    let s=await q.get();
+    return s.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{return MEM[col]||[];}
+}
+async function dbSet(col,id,data){
+  try{await db.collection(col).doc(id).set(data,{merge:true});}catch{}
+  if(!MEM[col])MEM[col]=[];
+  let i=MEM[col].findIndex(x=>x.id===id);
+  if(i>=0)MEM[col][i]={...MEM[col][i],...data};
+  else MEM[col].push({id,...data});
+}
+async function dbUpdate(col,id,data){
+  try{await db.collection(col).doc(id).update(data);}catch{}
+  if(!MEM[col])MEM[col]=[];
+  let i=MEM[col].findIndex(x=>x.id===id);
+  if(i>=0)Object.assign(MEM[col][i],data);
+}
+async function dbDelete(col,id){
+  try{await db.collection(col).doc(id).delete();}catch{}
+  if(MEM[col])MEM[col]=MEM[col].filter(x=>x.id!==id);
+}
+async function dbGetOne(col,id){
+  try{
+    let d=await db.collection(col).doc(id).get();
+    if(d.exists)return{id:d.id,...d.data()};
+  }catch{}
+  return(MEM[col]||[]).find(x=>x.id===id)||null;
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
+
+// ============================================================
+// PORTAIL — LOGIN OVERLAY
+// ============================================================
+function openLogin(service){
+  currentService=service;
+  let svc=SERVICES[service];
+  // Image dans le login overlay
+  let img=$('l-icon-img');
+  let fallback=$('l-icon-fallback');
+  if(svc.img){
+    img.src=svc.img;
+    img.style.display='block';
+    img.onerror=function(){this.style.display='none';fallback.style.display='flex';fallback.textContent=svc.fallback;};
+    fallback.style.display='none';
+  }else{
+    img.style.display='none';
+    fallback.style.display='flex';
+    fallback.textContent=svc.fallback;
+  }
+  $('l-icon').style.background=svc.color;
+  $('l-service-name').textContent=svc.label;
+  $('l-service-sub').textContent=svc.sub;
+  $('l-title').style.color=svc.color;
+  $('btn-login').style.background=svc.color;
+  $('lerr').style.display='none';
+  $('lid').value='';$('lpw').value='';
+  $('login-overlay').classList.add('open');
+  setTimeout(()=>$('lid').focus(),100);
+}
+function closeLogin(){
+  $('login-overlay').classList.remove('open');
+  currentService=null;
+}
+
+async function doLogin(){
+  let id=$('lid').value.trim();
+  let pw=$('lpw').value;
+  if(!id||!pw){$('lerr').textContent='Remplissez tous les champs.';$('lerr').style.display='block';return;}
+
+  let svc=SERVICES[currentService];
+  let ok=false;
+
+  // Vérifier Firebase
+  try{
+    let snap=await db.collection('users')
+      .where('identifiant','==',id)
+      .where('service','==',currentService)
+      .limit(1).get();
+    if(!snap.empty){
+      let data=snap.docs[0].data();
+      if(data.password===pw) ok=true;
+    }
+  }catch{}
+
+  // Fallback démo
+  if(!ok){
+    let du=svc.demoUsers[id];
+    if(du&&du.pw===pw) ok=true;
+  }
+
+  if(!ok){
+    $('lerr').textContent='Identifiant ou mot de passe incorrect.';
+    $('lerr').style.display='block';
+    return;
+  }
+
+  // Stocker les infos dans sessionStorage pour que le fichier cible les lise
+  try{
+    sessionStorage.setItem('fdo_login_id',id);
+    sessionStorage.setItem('fdo_login_pw',pw);
+    sessionStorage.setItem('fdo_login_service',currentService);
+  }catch{}
+
+  // Rediriger vers le bon HTML
+  showToast('Connexion réussie — redirection…');
+  setTimeout(()=>{
+    window.location.href=svc.file+'?from=portail';
+  },800);
+}
+
+// ============================================================
+// ADMIN — LOGIN FONDATEUR
+// ============================================================
+function openAdminLogin(){
+  $('admin-login-section').style.display='block';
+  $('admin-dashboard').style.display='none';
+  adminLogged=false;
+  $('a-id').value='';$('a-pw').value='';$('a-err').style.display='none';
+  $('admin-panel').classList.add('open');
+  setTimeout(()=>$('a-id').focus(),100);
+}
+function closeAdmin(){
+  $('admin-panel').classList.remove('open');
+  if(!adminLogged){$('a-id').value='';$('a-pw').value='';}
+}
+
+async function doAdminLogin(){
+  let id=$('a-id').value.trim();
+  let pw=$('a-pw').value;
+  let ok=false;
+
+  // Vérifier Firebase fondateur
+  try{
+    let snap=await db.collection('users')
+      .where('identifiant','==',id)
+      .where('role','==','FONDATEUR')
+      .limit(1).get();
+    if(!snap.empty&&snap.docs[0].data().password===pw) ok=true;
+  }catch{}
+
+  // Fallback démo
+  if(!ok&&id===FONDATEUR.id&&pw===FONDATEUR.pw) ok=true;
+
+  if(!ok){
+    $('a-err').textContent='Identifiant ou mot de passe incorrect.';
+    $('a-err').style.display='block';
+    return;
+  }
+
+  adminLogged=true;
+  $('a-err').style.display='none';
+  $('admin-login-section').style.display='none';
+  $('admin-dashboard').style.display='block';
+  renderAdminDash();
+}
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+let adminTab='users';
+
+async function renderAdminDash(){
+  let users=await dbGet('users');
+  let gnU=users.filter(x=>x.service==='gn').length;
+  let pnU=users.filter(x=>x.service==='pn').length;
+  let procs=await dbGet('procedures');
+  let interv=await dbGet('interventions');
+
+  $('admin-dashboard').innerHTML=`
+  <!-- Stats -->
+  <div class="asr">
+    <div class="ast"><div class="ast-n">${gnU}</div><div class="ast-l">Comptes GN</div></div>
+    <div class="ast"><div class="ast-n">${pnU}</div><div class="ast-l">Comptes PN</div></div>
+    <div class="ast"><div class="ast-n">${procs.length}</div><div class="ast-l">Procédures</div></div>
+    <div class="ast"><div class="ast-n">${interv.length}</div><div class="ast-l">Interventions</div></div>
+  </div>
+
+  <!-- Onglets -->
+  <div class="atabs">
+    <div class="atab ${adminTab==='users'?'active':''}" onclick="switchTab('users')">👥 Comptes</div>
+    <div class="atab ${adminTab==='create'?'active':''}" onclick="switchTab('create')">➕ Créer compte</div>
+    <div class="atab ${adminTab==='images'?'active':''}" onclick="switchTab('images')">🖼️ Images</div>
+    <div class="atab ${adminTab==='webhooks'?'active':''}" onclick="switchTab('webhooks')">🔗 Webhooks</div>
+    <div class="atab ${adminTab==='stats'?'active':''}" onclick="switchTab('stats')">📊 Stats globales</div>
+  </div>
+
+  <div id="admin-tab-content"></div>
+  `;
+
+  renderAdminTab();
+}
+
+function switchTab(tab){
+  adminTab=tab;
+  document.querySelectorAll('.atab').forEach((t,i)=>{
+    let tabs=['users','create','images','webhooks','stats'];
+    t.classList.toggle('active',tabs[i]===tab);
+  });
+  renderAdminTab();
+}
+
+async function renderAdminTab(){
+  let el=$('admin-tab-content');
+  if(!el)return;
+
+  if(adminTab==='users') await renderTabUsers(el);
+  else if(adminTab==='create') renderTabCreate(el);
+  else if(adminTab==='images') renderTabImages(el);
+  else if(adminTab==='webhooks') await renderTabWebhooks(el);
+  else if(adminTab==='stats') await renderTabStats(el);
+}
+
+// ---- TAB: Images ----
+function renderTabImages(el){
+  let gnImg=SERVICES.gn.img||'';
+  let pnImg=SERVICES.pn.img||'';
+  let gnTitle=document.getElementById('title-gn')?document.getElementById('title-gn').innerHTML:'Gendarmerie<br>Nationale';
+  let pnTitle=document.getElementById('title-pn')?document.getElementById('title-pn').innerHTML:'Police<br>Nationale';
+  let gnSub=document.getElementById('sub-gn')?document.getElementById('sub-gn').textContent:'Intranet GN';
+  let pnSub=document.getElementById('sub-pn')?document.getElementById('sub-pn').textContent:'Intranet PN';
+
+  el.innerHTML=`
+  <div style="font-size:13px;font-weight:700;margin-bottom:6px">🖼️ Images & Textes des cartes du portail</div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:18px">Collez un lien goopics ou n'importe quelle URL d'image directe. La prévisualisation se met à jour en temps réel.</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+    <!-- GN -->
+    <div style="background:#f8f9fc;border:1px solid #e0e4f0;border-radius:12px;padding:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:12px;color:#0d1b2a">⚜️ Gendarmerie Nationale</div>
+      <!-- Preview -->
+      <div style="display:flex;justify-content:center;margin-bottom:14px">
+        <div style="width:70px;height:70px;border-radius:50%;overflow:hidden;background:#0d1b2a;border:2px solid #ccc;display:flex;align-items:center;justify-content:center">
+          <img id="prev-gn" src="${gnImg}" style="width:100%;height:100%;object-fit:cover"
+               onerror="this.style.display='none';document.getElementById('prev-gn-fb').style.display='flex'"
+               onload="this.style.display='block';document.getElementById('prev-gn-fb').style.display='none'">
+          <span id="prev-gn-fb" style="color:#fff;font-size:13px;font-weight:700;display:none">GN</span>
+        </div>
+      </div>
+      <div class="afr">
+        <label>URL image (goopics, imgur, etc.)</label>
+        <input type="text" id="img-url-gn" value="${gnImg}" placeholder="https://i.goopics.net/..."
+               oninput="previewImg('gn',this.value)">
+      </div>
+      <div class="afr">
+        <label>Titre de la carte</label>
+        <input type="text" id="img-title-gn" value="${gnTitle.replace('<br>','\n').replace(/<[^>]+>/g,'')}" placeholder="Gendarmerie Nationale">
+      </div>
+      <div class="afr">
+        <label>Sous-titre</label>
+        <input type="text" id="img-sub-gn" value="${gnSub}" placeholder="Intranet GN">
+      </div>
+    </div>
+
+    <!-- PN -->
+    <div style="background:#f8f9fc;border:1px solid #e0e4f0;border-radius:12px;padding:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:12px;color:#1a237e">🚔 Police Nationale</div>
+      <!-- Preview -->
+      <div style="display:flex;justify-content:center;margin-bottom:14px">
+        <div style="width:70px;height:70px;border-radius:50%;overflow:hidden;background:#1a237e;border:2px solid #ccc;display:flex;align-items:center;justify-content:center">
+          <img id="prev-pn" src="${pnImg}" style="width:100%;height:100%;object-fit:cover"
+               onerror="this.style.display='none';document.getElementById('prev-pn-fb').style.display='flex'"
+               onload="this.style.display='block';document.getElementById('prev-pn-fb').style.display='none'">
+          <span id="prev-pn-fb" style="color:#fff;font-size:13px;font-weight:700;display:none">PN</span>
+        </div>
+      </div>
+      <div class="afr">
+        <label>URL image (goopics, imgur, etc.)</label>
+        <input type="text" id="img-url-pn" value="${pnImg}" placeholder="https://i.goopics.net/..."
+               oninput="previewImg('pn',this.value)">
+      </div>
+      <div class="afr">
+        <label>Titre de la carte</label>
+        <input type="text" id="img-title-pn" value="${pnTitle.replace('<br>','\n').replace(/<[^>]+>/g,'')}" placeholder="Police Nationale">
+      </div>
+      <div class="afr">
+        <label>Sous-titre</label>
+        <input type="text" id="img-sub-pn" value="${pnSub}" placeholder="Intranet PN">
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+    <button class="btn btn-sm-green" style="padding:9px 22px;font-size:12px" onclick="applyImages()">✅ Appliquer sur le portail</button>
+    <button class="btn btn-sm-blue" style="padding:9px 22px;font-size:12px" onclick="saveImages()">💾 Sauvegarder dans Firebase</button>
+    <span style="font-size:11px;color:#aaa">Les changements s'appliquent immédiatement sur la page</span>
+  </div>`;
+}
+
+function previewImg(svc,url){
+  let img=document.getElementById('prev-'+svc);
+  let fb=document.getElementById('prev-'+svc+'-fb');
+  if(!img)return;
+  img.src=url;
+  img.style.display='block';
+  fb.style.display='none';
+}
+
+function applyImages(){
+  let gnUrl=$('img-url-gn').value.trim();
+  let pnUrl=$('img-url-pn').value.trim();
+  let gnTitle=$('img-title-gn').value.trim();
+  let pnTitle=$('img-title-pn').value.trim();
+  let gnSub=$('img-sub-gn').value.trim();
+  let pnSub=$('img-sub-pn').value.trim();
+
+  // Mettre à jour config JS
+  SERVICES.gn.img=gnUrl||SERVICES.gn.img;
+  SERVICES.pn.img=pnUrl||SERVICES.pn.img;
+
+  // Mettre à jour les cartes portail
+  let imgGN=$('img-gn');
+  let imgPN=$('img-pn');
+  if(imgGN){imgGN.src=gnUrl;imgGN.style.display='block';}
+  if(imgPN){imgPN.src=pnUrl;imgPN.style.display='block';}
+
+  // Mettre à jour titres/sous-titres
+  let tGN=$('title-gn');let tPN=$('title-pn');
+  let sGN=$('sub-gn');  let sPN=$('sub-pn');
+  if(tGN)tGN.innerHTML=gnTitle.replace('\n','<br>');
+  if(tPN)tPN.innerHTML=pnTitle.replace('\n','<br>');
+  if(sGN)sGN.textContent=gnSub;
+  if(sPN)sPN.textContent=pnSub;
+
+  showToast('Images appliquées sur le portail !');
+}
+
+async function saveImages(){
+  applyImages();
+  let data={
+    gn_img:$('img-url-gn').value.trim(),
+    pn_img:$('img-url-pn').value.trim(),
+    gn_title:$('img-title-gn').value.trim(),
+    pn_title:$('img-title-pn').value.trim(),
+    gn_sub:$('img-sub-gn').value.trim(),
+    pn_sub:$('img-sub-pn').value.trim(),
+  };
+  await dbSet('config','portail_images',data);
+  showToast('Images sauvegardées dans Firebase !');
+}
+
+// ---- TAB: Comptes ----
+async function renderTabUsers(el){
+  let users=await dbGet('users');
+  el.innerHTML=`
+  <div class="atw">
+    <div class="ath">
+      👥 Tous les comptes (${users.length})
+      <div style="display:flex;gap:6px">
+        <select id="filter-svc" onchange="renderAdminTab()" style="font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #ddd">
+          <option value="">Tous services</option>
+          <option value="gn">GN seulement</option>
+          <option value="pn">PN seulement</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Service</th><th>Identifiant</th><th>Nom Prénom</th>
+        <th>Grade</th><th>Rôle</th><th>RIO</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="users-tbody">
+        ${renderUsersRows(users,'')}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+
+  // Re-appliquer filtre si changé
+  let sel=$('filter-svc');
+  if(sel){
+    sel.onchange=async function(){
+      let f=this.value;
+      let all=await dbGet('users');
+      let filtered=f?all.filter(x=>x.service===f):all;
+      $('users-tbody').innerHTML=renderUsersRows(filtered,f);
+    };
+  }
+}
+
+function renderUsersRows(users){
+  if(!users.length) return`<tr><td colspan="7" style="text-align:center;color:#aaa;padding:16px">Aucun compte trouvé</td></tr>`;
+  return users.map(x=>`<tr>
+    <td>${badge(x.service||'—',x.service==='gn'?'blue':'purple')}</td>
+    <td><strong>${x.identifiant||'—'}</strong></td>
+    <td>${x.nom||''} ${x.prenom||''}</td>
+    <td>${badge(x.grade||'—','gray')}</td>
+    <td>${badge(x.role||'—',x.role==='ADMIN'||x.role==='FONDATEUR'?'red':'blue')}</td>
+    <td>${x.rio||x.matricule||'—'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-sm-blue" onclick="openEditUserAdmin('${x.id}')">✏️</button>
+      <button class="btn btn-sm-red" style="margin-left:4px" onclick="deleteUserAdmin('${x.id}','${x.identifiant||x.id}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ---- TAB: Créer compte ----
+function renderTabCreate(el){
+  el.innerHTML=`
+  <div style="max-width:540px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #eee">➕ Créer un nouveau compte</div>
+    <div class="afr-row">
+      <div class="afr"><label>Identifiant *</label><input type="text" id="nc-id" placeholder="login"></div>
+      <div class="afr"><label>Mot de passe *</label><input type="password" id="nc-pw"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr"><label>Nom *</label><input type="text" id="nc-nom"></div>
+      <div class="afr"><label>Prénom *</label><input type="text" id="nc-prenom"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr">
+        <label>Service *</label>
+        <select id="nc-service" onchange="updateNcGrades()">
+          <option value="gn">Gendarmerie Nationale</option>
+          <option value="pn">Police Nationale</option>
+        </select>
+      </div>
+      <div class="afr">
+        <label>Rôle *</label>
+        <select id="nc-role">
+          <option value="SOG">SOG</option>
+          <option value="AGENT">Agent</option>
+          <option value="OFFICIER">Officier</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="afr-row">
+      <div class="afr">
+        <label>Grade</label>
+        <select id="nc-grade">${GRADES_GN.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('')}</select>
+      </div>
+      <div class="afr"><label>RIO / Matricule</label><input type="text" id="nc-rio"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr"><label>Date de naissance</label><input type="date" id="nc-ddn"></div>
+      <div class="afr"><label>École(s) / Diplômes</label><input type="text" id="nc-ecoles"></div>
+    </div>
+    <div style="margin:10px 0 6px;font-size:11px;font-weight:700;color:#555">Aptitudes :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="nc-corg"> Apte CORG/CIC</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="nc-rh"> Apte RH</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="nc-form"> Formateur</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="nc-opj"> OPJ</label>
+    </div>
+    <button class="btn btn-sm-green" style="padding:9px 20px;font-size:12px" onclick="createUserAdmin()">✅ Créer le compte</button>
+  </div>`;
+}
+
+const GRADES_GN=[
+  {code:'GAV',name:'Gendarme adj. vol.'},
+  {code:'BRI',name:'Brigadier'},
+  {code:'BRC',name:'Brigadier-chef'},
+  {code:'MDL',name:'Maréchal des logis'},
+  {code:'GND',name:'Gendarme'},
+  {code:'MDC',name:'Maréchal des logis-chef'},
+  {code:'ADJ',name:'Adjudant'},
+  {code:'ADC',name:'Adjudant-chef'},
+  {code:'MJR',name:'Major'},
+  {code:'LT',name:'Lieutenant'},
+  {code:'CNE',name:'Capitaine'},
+  {code:'CDT',name:'Commandant'},
+  {code:'LCL',name:'Lieutenant-colonel'},
+  {code:'COL',name:'Colonel'},
+];
+const GRADES_PN=[
+  {code:'EGPX',name:'Élève gardien'},
+  {code:'GPX',name:'Gardien de la Paix'},
+  {code:'BRG',name:'Brigadier'},
+  {code:'MJR',name:'Major'},
+  {code:'LTS',name:'Lieutenant stagiaire'},
+  {code:'LTN',name:'Lieutenant'},
+  {code:'CNE',name:'Capitaine'},
+  {code:'CDT',name:'Commandant'},
+  {code:'CRE',name:'Commissaire'},
+  {code:'CD',name:'Commissaire div.'},
+];
+
+function updateNcGrades(){
+  let s=$('nc-service').value;
+  let grades=s==='gn'?GRADES_GN:GRADES_PN;
+  $('nc-grade').innerHTML=grades.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('');
+}
+
+async function createUserAdmin(){
+  let id=$('nc-id').value.trim();
+  let pw=$('nc-pw').value;
+  let nom=$('nc-nom').value.trim();
+  let prenom=$('nc-prenom').value.trim();
+  if(!id||!pw||!nom||!prenom){showToast('Champs obligatoires manquants',false);return;}
+  let svc=$('nc-service').value;
+  let data={
+    identifiant:id,password:pw,nom,prenom,
+    service:svc,role:$('nc-role').value,
+    grade:$('nc-grade').value,rio:$('nc-rio').value,
+    ddn:$('nc-ddn').value,ecoles:$('nc-ecoles').value,
+    aptCorg:$('nc-corg').checked,aptRh:$('nc-rh').checked,
+    formateur:$('nc-form').checked,aptOPJ:$('nc-opj').checked,
+    createdAt:new Date().toISOString(),createdBy:'fondateur'
+  };
+  await dbSet('users',id,data);
+  showToast('Compte '+id+' créé avec succès !');
+  adminTab='users';
+  renderAdminDash();
+}
+
+// ---- Edit user ----
+async function openEditUserAdmin(uid){
+  let x=await dbGetOne('users',uid);
+  if(!x){showToast('Utilisateur introuvable',false);return;}
+  let grades=x.service==='pn'?GRADES_PN:GRADES_GN;
+  let html=`
+  <div style="max-width:540px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #eee">
+      ✏️ Modifier — ${x.nom||''} ${x.prenom||''} ${badge(x.service||'—','blue')}
+    </div>
+    <input type="hidden" id="eu-uid" value="${uid}">
+    <div class="afr-row">
+      <div class="afr"><label>Nom</label><input type="text" id="eu-nom" value="${x.nom||''}"></div>
+      <div class="afr"><label>Prénom</label><input type="text" id="eu-prenom" value="${x.prenom||''}"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr"><label>RIO / Matricule</label><input type="text" id="eu-rio" value="${x.rio||''}"></div>
+      <div class="afr"><label>Nouveau mot de passe</label><input type="password" id="eu-pw" placeholder="Vide = inchangé"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr"><label>DDN</label><input type="date" id="eu-ddn" value="${x.ddn||''}"></div>
+      <div class="afr"><label>École(s)</label><input type="text" id="eu-ecoles" value="${x.ecoles||''}"></div>
+    </div>
+    <div class="afr-row">
+      <div class="afr"><label>Grade</label>
+        <select id="eu-grade">${grades.map(g=>`<option value="${g.code}" ${x.grade===g.code?'selected':''}>${g.name} (${g.code})</option>`).join('')}</select>
+      </div>
+      <div class="afr"><label>Rôle</label>
+        <select id="eu-role">
+          ${['SOG','AGENT','OFFICIER','ADMIN'].map(r=>`<option value="${r}" ${x.role===r?'selected':''}>${r}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="margin:10px 0 6px;font-size:11px;font-weight:700;color:#555">Aptitudes :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-corg" ${x.aptCorg?'checked':''}> Apte CORG/CIC</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-rh" ${x.aptRh?'checked':''}> Apte RH</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-form" ${x.formateur?'checked':''}> Formateur</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" id="eu-opj" ${x.aptOPJ?'checked':''}> OPJ</label>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm-green" style="padding:8px 16px;font-size:12px" onclick="saveUserAdmin()">💾 Enregistrer</button>
+      <button class="btn btn-sm-navy" style="padding:8px 16px;font-size:12px" onclick="renderAdminDash()">← Retour</button>
+    </div>
+  </div>`;
+  $('admin-tab-content').innerHTML=html;
+  // Masquer les tabs pendant l'édition
+  document.querySelectorAll('.atab').forEach(t=>t.style.opacity='.4');
+}
+
+async function saveUserAdmin(){
+  let uid=$('eu-uid').value;
+  let up={
+    nom:$('eu-nom').value,prenom:$('eu-prenom').value,
+    rio:$('eu-rio').value,ddn:$('eu-ddn').value,
+    ecoles:$('eu-ecoles').value,grade:$('eu-grade').value,
+    role:$('eu-role').value,
+    aptCorg:$('eu-corg').checked,aptRh:$('eu-rh').checked,
+    formateur:$('eu-form').checked,aptOPJ:$('eu-opj').checked,
+    updatedAt:new Date().toISOString(),updatedBy:'fondateur'
+  };
+  let pw=$('eu-pw').value;if(pw)up.password=pw;
+  await dbUpdate('users',uid,up);
+  showToast('Compte mis à jour !');
+  renderAdminDash();
+}
+
+async function deleteUserAdmin(uid,label){
+  if(!confirm('Supprimer le compte "'+label+'" ? Cette action est irréversible.'))return;
+  await dbDelete('users',uid);
+  showToast('Compte "'+label+'" supprimé.');
+  renderAdminDash();
+}
+
+// ---- TAB: Webhooks ----
+let savedWebhooks={};
+async function renderTabWebhooks(el){
+  let cfg=await dbGetOne('config','webhooks');
+  if(cfg)savedWebhooks=cfg;
+  el.innerHTML=`
+  <div style="max-width:540px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #eee">🔗 Webhooks Discord</div>
+    <div class="afr">
+      <label>🟦 Webhook Congés — Gendarmerie</label>
+      <input type="text" id="wh-conge-gn" value="${savedWebhooks.conge_gn||''}" placeholder="https://discord.com/api/webhooks/...">
+    </div>
+    <div class="afr">
+      <label>🟦 Webhook Formation — Gendarmerie</label>
+      <input type="text" id="wh-form-gn" value="${savedWebhooks.formation_gn||''}" placeholder="https://discord.com/api/webhooks/...">
+    </div>
+    <div class="afr">
+      <label>🔵 Webhook Congés — Police</label>
+      <input type="text" id="wh-conge-pn" value="${savedWebhooks.conge_pn||''}" placeholder="https://discord.com/api/webhooks/...">
+    </div>
+    <div class="afr">
+      <label>🔵 Webhook Formation — Police</label>
+      <input type="text" id="wh-form-pn" value="${savedWebhooks.formation_pn||''}" placeholder="https://discord.com/api/webhooks/...">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-sm-green" style="padding:9px 20px;font-size:12px" onclick="saveWebhooks()">💾 Enregistrer</button>
+      <button class="btn btn-sm-blue" style="padding:9px 20px;font-size:12px" onclick="testWebhook()">🔔 Tester</button>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:#aaa;line-height:1.6">
+      Les webhooks sont utilisés pour envoyer les notifications de congés et demandes de formation sur Discord. Ils sont partagés entre ce portail et les intranets GN/PN.
+    </div>
+  </div>`;
+}
+async function saveWebhooks(){
+  let data={
+    conge_gn:$('wh-conge-gn').value,
+    formation_gn:$('wh-form-gn').value,
+    conge_pn:$('wh-conge-pn').value,
+    formation_pn:$('wh-form-pn').value,
+  };
+  await dbSet('config','webhooks',data);
+  savedWebhooks=data;
+  showToast('Webhooks enregistrés !');
+}
+async function testWebhook(){
+  let url=$('wh-conge-gn').value||$('wh-conge-pn').value;
+  if(!url){showToast('Aucun webhook renseigné',false);return;}
+  try{
+    await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      username:'Portail FDO — Test',
+      embeds:[{title:'✅ Test Webhook',description:'Connexion au portail FDO opérationnelle.',color:0x27ae60}]
+    })});
+    showToast('Webhook de test envoyé !');
+  }catch{showToast('Erreur envoi webhook',false);}
+}
+
+// ---- TAB: Stats ----
+async function renderTabStats(el){
+  let users=await dbGet('users');
+  let procs=await dbGet('procedures');
+  let interv=await dbGet('interventions');
+  let fprs=await dbGet('fpr');
+  let tajs=await dbGet('taj');
+  let foves=await dbGet('foves');
+  let agenda=await dbGet('agenda');
+  let gnU=users.filter(x=>x.service==='gn');
+  let pnU=users.filter(x=>x.service==='pn');
+  let admins=users.filter(x=>x.role==='ADMIN');
+
+  el.innerHTML=`
+  <div style="font-size:13px;font-weight:700;margin-bottom:14px">📊 Statistiques globales — toutes données</div>
+  <div class="asr" style="grid-template-columns:repeat(auto-fit,minmax(100px,1fr))">
+    <div class="ast"><div class="ast-n">${users.length}</div><div class="ast-l">Total comptes</div></div>
+    <div class="ast"><div class="ast-n">${gnU.length}</div><div class="ast-l">Comptes GN</div></div>
+    <div class="ast"><div class="ast-n">${pnU.length}</div><div class="ast-l">Comptes PN</div></div>
+    <div class="ast"><div class="ast-n">${admins.length}</div><div class="ast-l">Admins</div></div>
+    <div class="ast"><div class="ast-n">${procs.length}</div><div class="ast-l">Procédures</div></div>
+    <div class="ast"><div class="ast-n">${interv.length}</div><div class="ast-l">Interventions</div></div>
+    <div class="ast"><div class="ast-n">${fprs.length}</div><div class="ast-l">Fiches FPR</div></div>
+    <div class="ast"><div class="ast-n">${tajs.length}</div><div class="ast-l">Fiches TAJ</div></div>
+    <div class="ast"><div class="ast-n">${foves.length}</div><div class="ast-l">Fiches FoVES</div></div>
+    <div class="ast"><div class="ast-n">${agenda.length}</div><div class="ast-l">Agenda</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="atw">
+      <div class="ath">⚜️ Comptes Gendarmerie (${gnU.length})</div>
+      <table><thead><tr><th>Nom</th><th>Grade</th><th>Rôle</th></tr></thead>
+      <tbody>${gnU.slice(0,8).map(x=>`<tr><td>${x.nom||''} ${x.prenom||''}</td><td>${badge(x.grade||'—','gray')}</td><td>${badge(x.role||'—',x.role==='ADMIN'?'red':'blue')}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa;padding:10px">Aucun</td></tr>'}
+      ${gnU.length>8?`<tr><td colspan="3" style="text-align:center;font-size:11px;color:#aaa;padding:6px">+${gnU.length-8} autres...</td></tr>`:''}
+      </tbody></table>
+    </div>
+    <div class="atw">
+      <div class="ath">🚔 Comptes Police (${pnU.length})</div>
+      <table><thead><tr><th>Nom</th><th>Grade</th><th>Rôle</th></tr></thead>
+      <tbody>${pnU.slice(0,8).map(x=>`<tr><td>${x.nom||''} ${x.prenom||''}</td><td>${badge(x.grade||'—','gray')}</td><td>${badge(x.role||'—',x.role==='ADMIN'?'red':'blue')}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa;padding:10px">Aucun</td></tr>'}
+      ${pnU.length>8?`<tr><td colspan="3" style="text-align:center;font-size:11px;color:#aaa;padding:6px">+${pnU.length-8} autres...</td></tr>`:''}
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="atw" style="margin-top:12px">
+    <div class="ath">📋 Dernières procédures</div>
+    <table><thead><tr><th>Service</th><th>Titre</th><th>Rédacteur</th><th>Statut</th></tr></thead>
+    <tbody>${procs.slice(0,6).map(x=>`<tr>
+      <td>${badge(x.service||'—',x.service==='gn'?'blue':'purple')}</td>
+      <td>${x.titre||'—'}</td><td>${x.auteurNom||'—'}</td>
+      <td>${badge(x.statut||'En cours',x.statut==='Transmis'?'green':'orange')}</td>
+    </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:#aaa;padding:10px">Aucune procédure</td></tr>'}
+    </tbody></table>
+  </div>`;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload=async function(){
+  // Pré-charger les configs
+  try{
+    let cfg=await dbGetOne('config','webhooks');
+    if(cfg)savedWebhooks=cfg;
+  }catch{}
+
+  // Charger les images sauvegardées
+  try{
+    let imgs=await dbGetOne('config','portail_images');
+    if(imgs){
+      if(imgs.gn_img){
+        SERVICES.gn.img=imgs.gn_img;
+        let el=$('img-gn');if(el){el.src=imgs.gn_img;el.style.display='block';}
+      }
+      if(imgs.pn_img){
+        SERVICES.pn.img=imgs.pn_img;
+        let el=$('img-pn');if(el){el.src=imgs.pn_img;el.style.display='block';}
+      }
+      if(imgs.gn_title){let el=$('title-gn');if(el)el.innerHTML=imgs.gn_title.replace('\n','<br>');}
+      if(imgs.pn_title){let el=$('title-pn');if(el)el.innerHTML=imgs.pn_title.replace('\n','<br>');}
+      if(imgs.gn_sub){let el=$('sub-gn');if(el)el.textContent=imgs.gn_sub;}
+      if(imgs.pn_sub){let el=$('sub-pn');if(el)el.textContent=imgs.pn_sub;}
+    }
+  }catch{}
+
+  // ESC pour fermer les overlays
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      closeLogin();
+      closeAdmin();
+    }
+  });
+
+  // Clic hors modal pour fermer login
+  $('login-overlay').addEventListener('click',function(e){
+    if(e.target===this)closeLogin();
+  });
+};
+</script>
+</body>
+</html>
