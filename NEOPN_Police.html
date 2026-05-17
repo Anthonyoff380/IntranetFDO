@@ -149,6 +149,89 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .module-card{background:var(--card-bg);border-radius:12px;border:1px solid var(--card-border);padding:16px;margin-bottom:12px;transition:border-color .2s}
 .module-card:hover{border-color:rgba(57,73,171,.4)}
 .module-img{width:100%;border-radius:8px;object-fit:cover;max-height:140px;margin-bottom:10px;display:block}
+
+/* ===== THEME JOUR ===== */
+:root[data-theme="light"]{
+  --accent:#1a237e;
+  --accent2:#3949ab;
+  --bg-dark:#eef1f9;
+  --bg-mid:#e4e9f5;
+  --bg-panel:#dde4f2;
+  --sidebar-bg:#f0f3fb;
+  --sidebar-border:rgba(0,0,0,.08);
+  --text-main:#111827;
+  --text-muted:#4a567a;
+  --text-dim:#8090b8;
+  --border:#ccd3e8;
+  --content-bg:#e8edf8;
+  --card-bg:#ffffff;
+  --card-border:#d2daf0;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#d97706;
+  --blue:#2563eb;
+}
+:root[data-theme="light"] body::before{
+  background:radial-gradient(ellipse at 20% 50%,rgba(26,35,126,.05) 0%,transparent 55%),
+             radial-gradient(ellipse at 80% 15%,rgba(57,73,171,.03) 0%,transparent 50%);
+}
+:root[data-theme="light"] .lbox{background:rgba(255,255,255,.98);border-color:rgba(0,0,0,.08);box-shadow:0 32px 80px rgba(0,0,0,.12)}
+:root[data-theme="light"] .fg input{background:#f5f7ff;color:#111;border-color:var(--border)}
+:root[data-theme="light"] .fg input::placeholder{color:var(--text-dim)}
+:root[data-theme="light"] .llogo-text{color:#111}
+:root[data-theme="light"] .ltitle{color:#111}
+:root[data-theme="light"] .topbar{background:rgba(240,243,251,.96)}
+:root[data-theme="light"] .topbar-search input{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.1);color:#111}
+:root[data-theme="light"] .topbar-search input::placeholder{color:var(--text-dim)}
+:root[data-theme="light"] .topbar-user{color:var(--text-main)}
+:root[data-theme="light"] .topbar-user:hover{background:rgba(0,0,0,.05)}
+:root[data-theme="light"] .topbar-brand,:root[data-theme="light"] #tb-brand{color:#1a237e!important}
+:root[data-theme="light"] .sidebar{background:var(--sidebar-bg)}
+:root[data-theme="light"] .nav-item{color:var(--text-muted)}
+:root[data-theme="light"] .nav-item:hover{background:rgba(26,35,126,.07)}
+:root[data-theme="light"] .nav-item.active{color:#fff;background:linear-gradient(135deg,rgba(26,35,126,.9),rgba(57,73,171,.8))}
+:root[data-theme="light"] .sidebar-section{color:var(--text-dim)}
+:root[data-theme="light"] .udrop{background:#fff;border-color:var(--border)}
+:root[data-theme="light"] .udrop-name{color:#111}
+:root[data-theme="light"] .udrop-row{color:var(--text-muted)}
+:root[data-theme="light"] .udrop-row strong{color:var(--text-main)}
+:root[data-theme="light"] .mb{background:#fff;border-color:var(--border)}
+:root[data-theme="light"] .mt{color:#111;border-color:var(--border)}
+:root[data-theme="light"] .mc{background:rgba(0,0,0,.06)}
+:root[data-theme="light"] .mc:hover{background:rgba(0,0,0,.12);color:#111}
+:root[data-theme="light"] .fr input,:root[data-theme="light"] .fr select,:root[data-theme="light"] .fr textarea{background:#f5f7ff;color:#111;border-color:var(--border)}
+:root[data-theme="light"] .fr select option{background:#fff;color:#111}
+:root[data-theme="light"] .fr input::placeholder,:root[data-theme="light"] .fr textarea::placeholder{color:var(--text-dim)}
+:root[data-theme="light"] .ft{color:#111;border-color:var(--border)}
+:root[data-theme="light"] .fr label{color:var(--text-muted)}
+:root[data-theme="light"] .fr-sec{color:var(--text-dim);border-color:var(--border)}
+:root[data-theme="light"] .th{color:#111}
+:root[data-theme="light"] th{color:var(--text-muted)}
+:root[data-theme="light"] td{color:var(--text-main)}
+:root[data-theme="light"] tr:hover td{background:rgba(0,0,0,.02)}
+:root[data-theme="light"] .page-title{color:#111}
+:root[data-theme="light"] .page-sub{color:var(--text-muted)}
+:root[data-theme="light"] .card-title{color:#111}
+:root[data-theme="light"] .st-n{color:#1a237e}
+:root[data-theme="light"] .grade-name-sm{color:#111}
+:root[data-theme="light"] .profil-info h2{color:#111}
+:root[data-theme="light"] .profil-info p{color:var(--text-muted)}
+:root[data-theme="light"] .grade-img-sm{background:rgba(0,0,0,.03)}
+:root[data-theme="light"] .profil-img{background:rgba(0,0,0,.03)}
+:root[data-theme="light"] #fondateur-bar{background:rgba(255,248,220,.9);color:#92400e;border-color:rgba(245,158,11,.3)}
+
+
+:root[data-theme="light"] #theme-toggle{
+  background:rgba(0,0,0,.06);
+  border-color:rgba(0,0,0,.12);
+  color:#333;
+}
+:root[data-theme="light"] #theme-toggle:hover{background:rgba(0,0,0,.1)}
+:root[data-theme="light"] .topbar-divider{background:rgba(0,0,0,.1)}
+:root[data-theme="light"] .topbar-logo{border-color:rgba(0,0,0,.12)}
+:root[data-theme="light"] .udrop-meta{border-color:var(--border)}
+:root[data-theme="light"] .btn-logout{background:rgba(220,38,38,.08);color:#b91c1c;border-color:rgba(220,38,38,.2)}
+:root[data-theme="light"] .btn-logout:hover{background:rgba(220,38,38,.15)}
 </style>
 </head>
 <body>
@@ -193,6 +276,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
     </div>
     <div class="topbar-search"><input type="text" placeholder="🔍  Recherche..." id="search-input"></div>
     <div class="topbar-right">
+      <button id="theme-toggle" onclick="toggleTheme()" title="Changer le thème" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0">🌙</button>
       <div class="topbar-user" onclick="toggleUD()">
         <div class="topbar-user-avatar" id="topbar-avatar">—</div>
         <span id="nav-name">—</span>
@@ -218,6 +302,26 @@ tr:hover td{background:rgba(255,255,255,.03)}
 <div id="modals"></div>
 
 <script>
+
+// ============================================================
+// THEME JOUR / NUIT
+// ============================================================
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  let btn=document.getElementById('theme-toggle');
+  if(btn) btn.textContent = theme==='light' ? '🌙' : '☀️';
+  try{localStorage.setItem('neo_theme',theme);}catch{}
+}
+function toggleTheme(){
+  let cur=document.documentElement.getAttribute('data-theme')||'dark';
+  applyTheme(cur==='dark'?'light':'dark');
+}
+function initTheme(){
+  let saved='dark';
+  try{saved=localStorage.getItem('neo_theme')||'dark';}catch{}
+  applyTheme(saved);
+}
+
 // ============================================================
 // FIREBASE CONFIG
 // ============================================================
