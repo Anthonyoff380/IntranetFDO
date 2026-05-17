@@ -586,22 +586,30 @@ async function loadGrades(){
     let gs=await db.collection('grades').where('service','==','gn').get();
     if(!gs.empty){
       let fbGrades=gs.docs.map(d=>({id:d.id,...d.data()}));
-      // Partir des grades Firebase en priorité, combler avec les défauts si manquants
+      // N'afficher QUE les grades qui ont une vraie image URL (créés par l'admin)
+      // + fusionner avec les hardcodés si ils ont aussi une img Firebase
+      let withImg=fbGrades.filter(g=>g.img&&g.img.startsWith('http'));
+      // Grades hardcodés sans img Firebase → on les garde en fallback SANS image
       let merged=[...GRADES_GN];
-      fbGrades.forEach(fg=>{
+      withImg.forEach(fg=>{
         let i=merged.findIndex(g=>g.code===fg.code);
-        if(i>=0){
-          // Firebase a la priorité sur le défaut — img Firebase écrase img vide
-          merged[i]={...merged[i],...fg};
-        } else {
-          merged.push(fg);
-        }
+        if(i>=0) merged[i]={...merged[i],...fg};
+        else merged.push(fg);
       });
-      GRADES=merged.sort((a,b)=>(a.order||99)-(b.order||99));
+      // Ne garder que ceux qui ont une image OU qui viennent de Firebase
+      GRADES=merged.filter(g=>{
+        let fromFB=withImg.find(fg=>fg.code===g.code);
+        return fromFB!=null; // Afficher seulement les grades avec image Firebase
+      }).sort((a,b)=>(a.order||99)-(b.order||99));
+      if(GRADES.length===0){
+        // Aucun grade Firebase avec image → afficher tous les hardcodés (mode démo)
+        GRADES=[...GRADES_GN].filter(g=>g.img&&!g.img.startsWith('grades/'));
+      }
       return;
     }
   }catch(e){console.warn('loadGrades Firebase error:',e);}
-  GRADES=[...GRADES_GN];
+  // Aucun grade en Firebase → liste vide (pas de grades fantômes)
+  GRADES=[];
 }
 
 async function doLogin(){
@@ -1003,24 +1011,156 @@ async function exportProcPDF(id){
 PAGES['documents']=async function(){
   if(!hasPerm('opj')&&CU.role!=='ADMIN'){$('content').innerHTML='<div class="al al-red">🔒 Accès réservé aux OPJ</div>';return;}
   let procs=await dbGet('procedures',[['service','==','gn']]);
+  let docs=await dbGet('documents_pdf',[['service','==','gn']]);
   $('content').innerHTML=`
   <div class="page-title">Procédures & Documents</div>
   <div class="page-sub">Accès réservé OPJ</div>
-  <div class="tw"><div class="th">📁 Documents <button class="cbtn green" onclick="openModal('modal-proc')">+ Créer</button></div>
+
+  <!-- ── Procédures rédigées ── -->
+  <div class="tw"><div class="th">📝 Procédures rédigées
+    <button class="cbtn green" onclick="openModal('modal-proc')">+ Créer</button>
+  </div>
   <table><thead><tr><th>Titre</th><th>Type</th><th>Rédacteur</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead>
   <tbody>${procs.length?procs.map(x=>`<tr>
     <td>${x.titre||'—'}</td><td>${badge(x.type||'—','blue')}</td><td>${x.auteurNom||'—'}</td>
     <td>${fmtDate(x._ts)}</td><td>${badge(x.statut||'En cours',x.statut==='Transmis'?'green':'orange')}</td>
-    <td>
+    <td style="white-space:nowrap">
       <button class="cbtn navy" onclick="viewProc('${x.id}')">Voir</button>
       <button class="cbtn green" onclick="exportProcPDF('${x.id}')">PDF</button>
       <button class="cbtn red" onclick="delProc('${x.id}')">Suppr.</button>
     </td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:#888;padding:14px">Aucun document</td></tr>'}
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:14px">Aucune procédure</td></tr>'}
   </tbody></table></div>
+
+  <!-- ── Documents PDF importés ── -->
+  <div class="tw"><div class="th">📁 Documents PDF importés
+    <button class="cbtn blue" onclick="openModal('modal-upload-pdf')">⬆ Importer un PDF</button>
+  </div>
+  <table><thead><tr><th>Nom du fichier</th><th>Description</th><th>Importé par</th><th>Date</th><th>Taille</th><th>Action</th></tr></thead>
+  <tbody id="pdf-list">${docs.length?docs.map(x=>`<tr>
+    <td><span style="font-size:18px">📄</span> <strong>${x.nom||'—'}</strong></td>
+    <td>${x.description||'—'}</td>
+    <td>${x.auteur||'—'}</td>
+    <td>${fmtDate(x._ts)}</td>
+    <td>${x.taille||'—'}</td>
+    <td style="white-space:nowrap">
+      <button class="cbtn green" onclick="viewPDF('${x.id}')">Ouvrir</button>
+      <button class="cbtn red" onclick="delPDF('${x.id}')">Suppr.</button>
+    </td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:14px">Aucun document importé</td></tr>'}
+  </tbody></table></div>
+
   ${showModal('modal-proc','📝 Rédiger une procédure',buildProcForm())}
-  ${showModal('modal-view-proc','Procédure','<div id="proc-view-body"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="cbtn green" onclick="exportProcPDF(window._vProcId)">📄 PDF</button><button class="cbtn red" onclick="closeModal(\'modal-view-proc\')">Fermer</button></div>')}`;
+  ${showModal('modal-view-proc','Procédure','<div id="proc-view-body"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="cbtn green" onclick="exportProcPDF(window._vProcId)">📄 PDF</button><button class="cbtn red" onclick="closeModal(\'modal-view-proc\')">Fermer</button></div>')}
+  ${showModal('modal-upload-pdf','⬆ Importer un PDF',`
+    <div class="al al-blue" style="margin-bottom:12px">📌 Le fichier PDF est converti en base64 et stocké dans Firebase. Taille max recommandée : 2 Mo.</div>
+    <div class="fr"><label>Fichier PDF *</label>
+      <input type="file" id="pdf-file" accept=".pdf,application/pdf"
+             style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text-main);width:100%;cursor:pointer">
+      <div id="pdf-preview" style="margin-top:8px;font-size:11px;color:var(--text-muted)"></div>
+    </div>
+    <div class="fr"><label>Description (optionnel)</label><input type="text" id="pdf-desc" placeholder="Ex: Règlement intérieur, Procédure d'urgence..."></div>
+    <div id="pdf-progress" style="display:none;margin-top:8px">
+      <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+        <div id="pdf-bar" style="background:var(--accent2);height:100%;width:0%;transition:width .3s;border-radius:4px"></div>
+      </div>
+      <div id="pdf-progress-label" style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:center">Chargement…</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="cbtn green" onclick="uploadPDF()">⬆ Importer</button>
+      <button class="cbtn red" onclick="closeModal('modal-upload-pdf')">Annuler</button>
+    </div>
+  `)}`;
+
+  // Listener preview fichier
+  setTimeout(()=>{
+    let fi=document.getElementById('pdf-file');
+    if(fi) fi.onchange=function(){
+      let f=this.files[0];
+      if(!f)return;
+      let prev=document.getElementById('pdf-preview');
+      let sizeKB=(f.size/1024).toFixed(1);
+      let sizeMB=(f.size/1024/1024).toFixed(2);
+      let color=f.size>2*1024*1024?'#fca5a5':'#86efac';
+      if(prev) prev.innerHTML=`<span style="color:${color}">📄 ${f.name} — ${sizeKB} Ko (${sizeMB} Mo)${f.size>2*1024*1024?' ⚠️ Fichier volumineux':' ✅'}</span>`;
+    };
+  },100);
 };
+
+async function uploadPDF(){
+  let fi=document.getElementById('pdf-file');
+  if(!fi||!fi.files[0]){showToast('Sélectionnez un fichier PDF',false);return;}
+  let file=fi.files[0];
+  if(!file.type.includes('pdf')){showToast('Fichier PDF uniquement',false);return;}
+
+  let prog=document.getElementById('pdf-progress');
+  let bar=document.getElementById('pdf-bar');
+  let lbl=document.getElementById('pdf-progress-label');
+  if(prog) prog.style.display='block';
+  if(lbl) lbl.textContent='Lecture du fichier…';
+  if(bar) bar.style.width='20%';
+
+  try{
+    // Lire en base64
+    let b64=await new Promise((res,rej)=>{
+      let r=new FileReader();
+      r.onload=()=>res(r.result.split(',')[1]);
+      r.onerror=rej;
+      r.readAsDataURL(file);
+    });
+    if(bar) bar.style.width='60%';
+    if(lbl) lbl.textContent='Sauvegarde dans Firebase…';
+
+    let sizeKB=(file.size/1024).toFixed(1)+' Ko';
+    let data={
+      nom:file.name,
+      description:document.getElementById('pdf-desc').value||'',
+      auteur:CU.nom+' '+CU.prenom,
+      auteurRio:CU.rio||CU.uid,
+      taille:sizeKB,
+      data:b64,
+      type:'application/pdf',
+      service:'gn',
+    };
+    await dbAdd('documents_pdf',data);
+    if(bar) bar.style.width='100%';
+    if(lbl) lbl.textContent='Importé avec succès !';
+    setTimeout(()=>{
+      closeModal('modal-upload-pdf');
+      showToast('PDF importé et sauvegardé !');
+      renderPage('documents');
+    },600);
+  }catch(e){
+    if(prog) prog.style.display='none';
+    showToast('Erreur lors de l\'import : '+e.message,false);
+  }
+}
+
+async function viewPDF(id){
+  let x=await dbGetOne('documents_pdf',id);
+  if(!x||!x.data){showToast('Document introuvable',false);return;}
+  try{
+    let bin=atob(x.data);
+    let bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    let blob=new Blob([bytes],{type:'application/pdf'});
+    let url=URL.createObjectURL(blob);
+    let w=window.open(url,'_blank');
+    if(!w){
+      // Fallback : téléchargement direct
+      let a=document.createElement('a');
+      a.href=url;a.download=x.nom||'document.pdf';a.click();
+    }
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }catch(e){showToast('Impossible d\'ouvrir le PDF',false);}
+}
+
+async function delPDF(id){
+  if(!confirm2('Supprimer ce document PDF ? Action irréversible.'))return;
+  await dbDelete('documents_pdf',id);
+  showToast('Document supprimé.');
+  renderPage('documents');
+}
 
 // ---- BASES DE DONNÉES ----
 PAGES['bases']=async function(){
