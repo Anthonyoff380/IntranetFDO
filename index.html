@@ -412,7 +412,7 @@ const SERVICES = {
     file:'NEOPN_Police.html',
     demoUsers:{
       admin_pn:{pw:'AdminPN2026',role:'ADMIN',service:'pn'},
-      agent_pn: {pw:'Pn1234',    role:'AGENT', service:'pn'},
+      agent_pn: {pw:'Pn1234',    role:'CC', service:'pn'},
     }
   }
 };
@@ -864,9 +864,12 @@ function renderTabCreate(el){
       <div class="afr">
         <label>Rôle *</label>
         <select id="nc-role">
-          <option value="SOG">SOG</option>
-          <option value="AGENT">Agent</option>
-          <option value="OFFICIER">Officier</option>
+          <option value="SOG" class="opt-gn">SOG</option>
+          <option value="CEA" class="opt-pn" style="display:none">CEA</option>
+          <option value="AGENT" class="opt-gn">Agent</option>
+          <option value="CC" class="opt-pn" style="display:none">CC</option>
+          <option value="OFFICIER" class="opt-gn">Officier</option>
+          <option value="CCD" class="opt-pn" style="display:none">CCD</option>
           <option value="ADMIN">Admin</option>
         </select>
       </div>
@@ -926,6 +929,11 @@ function updateNcGrades(){
   let s=$('nc-service').value;
   let grades=s==='gn'?GRADES_GN:GRADES_PN;
   $('nc-grade').innerHTML=grades.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('');
+  // Rôles selon service
+  let rolesGN=[{v:'SOG',l:'SOG'},{v:'AGENT',l:'Agent'},{v:'OFFICIER',l:'Officier'},{v:'ADMIN',l:'Admin'}];
+  let rolesPN=[{v:'CEA',l:'CEA'},{v:'CC',l:'CC'},{v:'CCD',l:'CCD'},{v:'ADMIN',l:'Admin'}];
+  let roles=s==='gn'?rolesGN:rolesPN;
+  $('nc-role').innerHTML=roles.map(r=>`<option value="${r.v}">${r.l}</option>`).join('');
 }
 
 async function createUserAdmin(){
@@ -979,7 +987,7 @@ async function openEditUserAdmin(uid){
       </div>
       <div class="afr"><label>Rôle</label>
         <select id="eu-role">
-          ${['SOG','AGENT','OFFICIER','ADMIN'].map(r=>`<option value="${r}" ${x.role===r?'selected':''}>${r}</option>`).join('')}
+          ${(x.service==='pn'?['CEA','CC','CCD','ADMIN']:['SOG','AGENT','OFFICIER','ADMIN']).map(r=>`<option value="${r}" ${x.role===r?'selected':''}>${r}</option>`).join('')}
         </select>
       </div>
     </div>

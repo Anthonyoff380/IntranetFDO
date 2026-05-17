@@ -1462,7 +1462,7 @@ PAGES['admin']=async function(){
   ${buildCreateUserModal()}${buildEditUserModal()}`;
 };
 function buildCreateUserModal(){
-  let roleOpts=['SOG','AGENT','OFFICIER','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)];
+  let roleOpts=SERVICE==='pn'?['CEA','CC','CCD','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)]:['SOG','AGENT','OFFICIER','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)];
   let aptLabel=SERVICE==='pn'?'Apte CIC':'Apte CORG';
   return showModal('modal-cu','👤 Créer un compte',`
     <div class="fr-row"><div class="fr"><label>Identifiant *</label><input type="text" id="cu-id"></div><div class="fr"><label>Mot de passe *</label><input type="password" id="cu-pw"></div></div>
@@ -1477,7 +1477,7 @@ function buildCreateUserModal(){
     <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="adminCreateUser()">Créer</button><button class="cbtn red" onclick="closeModal('modal-cu')">Annuler</button></div>`);
 }
 function buildEditUserModal(){
-  let roleOpts=['SOG','AGENT','OFFICIER','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)];
+  let roleOpts=SERVICE==='pn'?['CEA','CC','CCD','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)]:['SOG','AGENT','OFFICIER','ADMIN',...(customRoles[SERVICE]||[]).map(r=>r.name)];
   let aptLabel=SERVICE==='pn'?'Apte CIC':'Apte CORG';
   return showModal('modal-eu','✏️ Modifier le compte',`
     <input type="hidden" id="eu-uid">
@@ -1744,7 +1744,7 @@ PAGES['f-users']=async function(){
     <div class="fr-row"><div class="fr"><label>Nom *</label><input type="text" id="fu-nom"></div><div class="fr"><label>Prénom *</label><input type="text" id="fu-prenom"></div></div>
     <div class="fr-row">
       <div class="fr"><label>Service *</label><select id="fu-service" onchange="updateFuGrade()"><option value="gn">Gendarmerie</option><option value="pn">Police</option></select></div>
-      <div class="fr"><label>Rôle *</label><select id="fu-role"><option>SOG</option><option>AGENT</option><option>OFFICIER</option><option>ADMIN</option></select></div>
+      <div class="fr"><label>Rôle *</label><select id="fu-role"><option value="SOG">SOG / CEA</option><option value="CC">CC</option><option value="CCD">CCD</option><option value="ADMIN">ADMIN</option></select></div>
     </div>
     <div class="fr-row"><div class="fr"><label>Grade</label><select id="fu-grade">${GRADES_GN.map(g=>`<option value="${g.code}">${g.name}</option>`).join('')}</select></div><div class="fr"><label>RIO / Matricule</label><input type="text" id="fu-rio"></div></div>
     <div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn green" onclick="fondCreateUser()">Créer</button></div>
