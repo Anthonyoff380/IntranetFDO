@@ -545,10 +545,10 @@ async function doLogin(){
     sessionStorage.setItem('fdo_login_service',currentService);
   }catch{}
 
-  // Rediriger vers le bon HTML
+  // Rediriger vers le bon HTML avec service en param
   showToast('Connexion réussie — redirection…');
   setTimeout(()=>{
-    window.location.href=svc.file+'?from=portail';
+    window.location.href=svc.file+'?service='+currentService;
   },800);
 }
 
