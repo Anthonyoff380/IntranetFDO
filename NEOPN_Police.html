@@ -434,7 +434,8 @@ function hasPerm(perm){
   if(perm==='corg')return CU.aptCorg||false;
   if(perm==='rh')return CU.aptRh||false;
   if(perm==='formateur')return CU.formateur||false;
-  if(perm==='opj')return CU.aptOPJ||false;
+  if(perm==='opj')return true;
+  if(['mcpn','patrouille','procedure'].includes(perm))return true;
   if(perm==='agenda'){
     let roles=customRoles[SERVICE]||[];
     let r=roles.find(r=>r.name===CU.role);
@@ -696,7 +697,7 @@ function buildSidebar(){
     html+=nav('personnel','👮','Gestion personnel');
     html+=nav('grades','🎖️','Grades');
     html+=nav('formation','🎓','Formation');
-    if(hasPerm('rh'))html+=nav('rh','📊','RH & administratif');
+    html+=nav('rh','📊','RH & administratif');
     html+=sec('Ressources');
     if(hasPerm('opj'))html+=nav('documents','📁','Documents & Procédures');
     html+=nav('logistique','🚒','Logistique');
@@ -1482,7 +1483,7 @@ PAGES['rh']=async function(){
     <div class="card"><div class="card-icon">📋</div><div class="card-title">Dossier administratif</div><div class="card-desc">Mon dossier complet</div><button class="cbtn navy" onclick="renderPage('dossier')">Consulter</button></div>
   </div>`;
 };
-PAGES['avancement']=async function(){
+PAGES['avancement']=async function(){ const canEdit=(CU&& (CU.role==='ADMIN'||CU.role==='FONDATEUR'));
   let avs=await dbGet('avancement',[['service','==',SERVICE]]);
   avs.sort((a,b)=>(a.ordre||99)-(b.ordre||99));
   let canEdit=hasPerm('formateur')||CU.role==='ADMIN';
